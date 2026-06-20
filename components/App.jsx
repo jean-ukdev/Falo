@@ -5,7 +5,8 @@ import {
   MessageCircle, Mic, Languages, BookOpen, BarChart3, Flame, Star, Check, X, Send,
   Volume2, Target, Zap, Plus, Heart, ChevronRight, ArrowRight, ArrowLeft, Plane,
   Briefcase, Utensils, BedDouble, ShoppingBag, Landmark, Building2, Loader2, RotateCcw,
-  User, Globe, GraduationCap, Sparkles, Crown, Lock, PartyPopper, Wand2, Trophy, RefreshCw, Lightbulb
+  User, Globe, GraduationCap, Sparkles, Crown, Lock, PartyPopper, Wand2, Trophy, RefreshCw, Lightbulb,
+  Stethoscope, Home, Bus, Flag
 } from "lucide-react";
 // Backend integration: AI chat + correction (/api/chat), text-to-speech (/api/tts),
 // speech-to-text recording (/api/stt). useRecorder mirrors the old useSpeech API.
@@ -147,7 +148,7 @@ const CSS = `
 .f-tabbar{ display:flex; background:#fff; border-top:1px solid var(--line);
   padding:7px 2px calc(7px + env(safe-area-inset-bottom)); position:relative; z-index:5; }
 .f-tab{ flex:1; min-width:0; display:flex; flex-direction:column; align-items:center; gap:3px; padding:6px 1px; color:var(--ink3); }
-.f-tab .lab{ font-size:9.5px; font-weight:800; letter-spacing:-.01em; max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.f-tab .lab{ font-size:9px; font-weight:800; letter-spacing:-.02em; max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .f-tab.on{ color:var(--coral); }
 .f-tab .dot{ width:5px; height:5px; border-radius:50%; background:transparent; }
 .f-tab.on .dot{ background:var(--coral); }
@@ -986,6 +987,294 @@ function SimScreen() {
   );
 }
 
+/* ============================ UK TRACK (Reino Unido) ============================ */
+function WordCard({ w }) {
+  const { favorites, toggleFav, bump, addXp, learned, markLearned } = useApp();
+  const fav = favorites.has(w.word), done = learned.has(w.word);
+  const syn = Array.isArray(w.synonyms) ? w.synonyms : [];
+  const ant = Array.isArray(w.antonyms) ? w.antonyms : [];
+  return (
+    <div className="f-card f-pad" style={{ padding: 14 }}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span className="f-h2" style={{ fontSize: 17 }}>{w.word}</span>
+            <button onClick={() => speak(w.word)} style={{ color: "var(--sky)" }}><Volume2 size={16} /></button>
+          </div>
+          <p className="f-muted" style={{ fontSize: 13.5, fontWeight: 700, marginTop: 1 }}>{w.translation}</p>
+          <p className="f-faint" style={{ fontSize: 13, fontStyle: "italic", marginTop: 6 }}>“{w.example}”</p>
+          {(syn.length > 0 || ant.length > 0) && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 9 }}>
+              {syn.slice(0, 3).map((s, i) => (<span key={"s" + i} style={{ fontSize: 11.5, fontWeight: 700, background: "#EEF7EE", color: "var(--ok)", padding: "3px 8px", borderRadius: 999 }}>≈ {s}</span>))}
+              {ant.slice(0, 2).map((a, i) => (<span key={"a" + i} style={{ fontSize: 11.5, fontWeight: 700, background: "#FDEEEE", color: "var(--err)", padding: "3px 8px", borderRadius: 999 }}>≠ {a}</span>))}
+            </div>
+          )}
+        </div>
+        <button onClick={() => toggleFav(w.word)} style={{ color: fav ? "var(--coral)" : "var(--ink3)" }}>
+          <Heart size={20} fill={fav ? "var(--coral)" : "none"} />
+        </button>
+      </div>
+      <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+        <button className="f-tiny" onClick={() => speak(w.example)}><Volume2 size={13} /> Frase</button>
+        <button className="f-tiny" style={done ? { background: "#EFFaf0", color: "var(--ok)", borderColor: "#cdebd6" } : {}}
+          onClick={() => { if (!done) { markLearned(w.word); bump("wordsLearned", 1); addXp(10); } }}>
+          {done ? <><Check size={13} /> Aprendida</> : <><Plus size={13} /> Aprendi</>}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+const UK_MODULES = [
+  { id: "jobs", label: "Empregos", icon: Briefcase, desc: "CV, entrevistas, payslip", long: "Tudo pra conseguir e manter um emprego no Reino Unido: CV, entrevistas, payslip, National Insurance e conversas com o supervisor.", vocabSeed: "UK employment terms for immigrants: CV, cover letter, interview, shift, payslip, overtime, National Insurance Number, reference, contract, self-employed", scenarios: [
+    { label: "Entrevista de emprego", opener: "Hello, lovely to meet you! Shall we start — can you tell me a bit about yourself?", role: "a UK hiring manager interviewing the user for a job in Britain; be polite and use British English" },
+    { label: "Primeiro dia de trabalho", opener: "Welcome to the team! Let me show you around. Any questions before we get started?", role: "a friendly British supervisor on the user's first day at work" },
+    { label: "Pedir uma folga", opener: "Hiya! You wanted a quick word? What can I do for you?", role: "the user's British line manager; the user wants to request a day off (annual leave)" },
+  ] },
+  { id: "nhs", label: "Saúde (NHS)", icon: Stethoscope, desc: "GP, prescription, pharmacy", long: "O inglês do sistema de saúde britânico (NHS): marcar consulta no GP, explicar sintomas, farmácia e emergências.", vocabSeed: "UK NHS healthcare terms: GP appointment, prescription, emergency, NHS number, pharmacy, symptoms, pain, medication, surgery, referral", scenarios: [
+    { label: "Marcar consulta no GP", opener: "Good morning, this is the surgery. How can I help you today?", role: "a GP surgery receptionist on the phone; help the user book a GP appointment" },
+    { label: "Explicar sintomas ao médico", opener: "Hello, come in and take a seat. So, what seems to be the problem today?", role: "a British GP (doctor) asking the user about their symptoms" },
+    { label: "Na farmácia", opener: "Hi there! How can I help you today?", role: "a pharmacist at a UK pharmacy helping the user collect a prescription" },
+  ] },
+  { id: "housing", label: "Moradia", icon: Home, desc: "Rent, deposit, landlord", long: "Alugar e morar no Reino Unido: rent, deposit, landlord, council tax e como reportar problemas no imóvel.", vocabSeed: "UK housing and renting terms: rent, deposit, landlord, tenant, council tax, utility bills, tenancy contract, viewing, estate agent, mould", scenarios: [
+    { label: "Visitar um imóvel pra alugar", opener: "Hi, you must be here for the viewing! Come on in. What do you think so far?", role: "a UK letting agent showing the user a flat to rent" },
+    { label: "Reportar um problema ao landlord", opener: "Hello, this is your landlord. I got your message — what's the issue?", role: "the user's British landlord; the user needs to report a problem in the flat" },
+  ] },
+  { id: "bank", label: "Banco", icon: Landmark, desc: "Account, direct debit", long: "Abrir e usar conta bancária no Reino Unido: current account, direct debit, standing order e credit score.", vocabSeed: "UK banking terms: current account, savings account, credit score, debit card, direct debit, standing order, overdraft, sort code", scenarios: [
+    { label: "Abrir uma conta bancária", opener: "Good afternoon! Welcome to the bank. How can I help you today?", role: "a UK bank clerk helping the user open a current account" },
+  ] },
+  { id: "shopping", label: "Compras", icon: ShoppingBag, desc: "Refund, exchange, receipt", long: "Supermercado e lojas no Reino Unido: Tesco, Asda, Lidl, refund, exchange e self-checkout.", vocabSeed: "UK supermarket and shopping terms: Tesco, Asda, Lidl, Aldi, receipt, refund, exchange, self-checkout, trolley, loyalty card", scenarios: [
+    { label: "Trocar ou devolver um produto", opener: "Hiya! How can I help you?", role: "a customer service assistant at a UK shop; the user wants to return an item for a refund" },
+  ] },
+  { id: "transport", label: "Transporte", icon: Bus, desc: "Oyster, railcard, platform", long: "Se locomover no Reino Unido: train station, Oyster card, Railcard, platform e atrasos.", vocabSeed: "UK public transport terms: train station, bus stop, Oyster card, Railcard, platform, delay, return ticket, top up, off-peak", scenarios: [
+    { label: "Comprar passagem de trem", opener: "Hello! Where are you travelling to today?", role: "a ticket office clerk at a UK train station helping the user buy a ticket" },
+    { label: "Resolver um trem atrasado", opener: "Morning! You alright? You look a bit lost.", role: "a railway station staff member helping the user with a delayed or cancelled train" },
+  ] },
+  { id: "school", label: "Escola e filhos", icon: GraduationCap, desc: "Primary, parent meeting", long: "A escola britânica para os filhos: primary/secondary school, matrícula, attendance e reuniões com professores.", vocabSeed: "UK schooling terms for parents: primary school, secondary school, parent meeting, attendance, homework, head teacher, term, uniform", scenarios: [
+    { label: "Conversa na reunião escolar", opener: "Thanks for coming in! Lovely to meet you. Shall we talk about how things are going?", role: "a British primary school teacher talking to the user (a parent) at a parents' evening" },
+    { label: "Matricular o filho na escola", opener: "Good morning! How can I help you today?", role: "a UK school office receptionist helping the user enrol their child" },
+  ] },
+  { id: "business", label: "Empreender", icon: Building2, desc: "Sole trader, VAT, invoice", long: "Abrir e tocar um negócio no Reino Unido: limited company, sole trader, VAT, invoice e atendimento ao cliente.", vocabSeed: "UK business and self-employment terms: limited company, sole trader, VAT, invoice, corporation tax, business bank account, HMRC, self-assessment", scenarios: [
+    { label: "Registrar-se como sole trader", opener: "Hello! You've reached HMRC business support. How can I help you today?", role: "an HMRC business advisor helping the user register as a sole trader in the UK" },
+    { label: "Atender um cliente insatisfeito", opener: "Hi, I bought something from you last week and I'm not happy with it.", role: "an unhappy British customer complaining; the user is the business owner handling the complaint" },
+  ] },
+];
+
+const UK_CHALLENGE = [
+  { phase: "Dias 1–30", title: "Sobrevivência", color: "#FF6A4D", tasks: [
+    "Aprenda 20 palavras dos módulos Saúde e Moradia",
+    "Faça a simulação 'Marcar consulta no GP'",
+    "Pratique a pronúncia de 5 frases do dia a dia",
+    "Converse 5 minutos no modo Livre do chat",
+  ] },
+  { phase: "Dias 31–60", title: "Trabalho e comunicação", color: "#5C7CFA", tasks: [
+    "Aprenda 20 palavras do módulo Empregos",
+    "Faça a simulação de entrevista de emprego",
+    "Pratique o modo Negócios no chat",
+    "Faça a aula de gramática 'Past Simple'",
+  ] },
+  { phase: "Dias 61–90", title: "Fluência funcional", color: "#1F9D55", tasks: [
+    "Aprenda 20 palavras do módulo Empreender",
+    "Faça 3 simulações diferentes",
+    "Converse 10 minutos sem usar o 'Traduzir'",
+    "Refaça o teste de nivelamento e compare a evolução",
+  ] },
+];
+
+function MiniRoleplay({ scenario, onBack }) {
+  const { profile, bump, addXp } = useApp();
+  const [msgs, setMsgs] = useState([{ role: "ai", text: scenario.opener }]);
+  const [api, setApi] = useState([]);
+  const [input, setInput] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [counted, setCounted] = useState(false);
+  const speech = useSpeech();
+  const endRef = useRef(null);
+  useEffect(() => { speak(scenario.opener); }, []);
+  useEffect(() => { endRef.current && endRef.current.scrollIntoView({ behavior: "smooth" }); }, [msgs, busy]);
+  const Icon = scenario.icon || Wand2;
+  const send = async () => {
+    const text = input.trim(); if (!text || busy) return;
+    setInput(""); setBusy(true);
+    setMsgs((m) => [...m, { role: "me", text }]);
+    if (!counted) { setCounted(true); bump("sims", 1); bump("lessons", 1); addXp(25); }
+    const nextApi = [...api, { role: "user", content: text }];
+    try { const r = await roleReply(nextApi, scenario, profile); setMsgs((m) => [...m, { role: "ai", text: r }]); setApi([...nextApi, { role: "assistant", content: r }]); }
+    catch (e) { setMsgs((m) => [...m, { role: "ai", text: "(Sorry, I didn't catch that — could you repeat?)" }]); }
+    setBusy(false);
+  };
+  const mic = () => speech.listening ? speech.stop() : speech.start((t) => t && setInput(t));
+  return (
+    <>
+      <div className="f-top">
+        <button className="f-avatar-btn" onClick={onBack}><ArrowLeft size={17} /></button>
+        <div style={{ textAlign: "center" }}><div className="f-h2" style={{ fontSize: 15 }}>{scenario.label}</div><div className="f-faint" style={{ fontSize: 11, fontWeight: 700 }}>Simulação · Reino Unido</div></div>
+        <button className="f-tiny" onClick={onBack}><Check size={13} /> Sair</button>
+      </div>
+      <div className="f-scroll" style={{ background: "linear-gradient(180deg,#F4F0FB,#F8F5FC)" }}>
+        <div className="f-chat">
+          {msgs.map((m, i) => m.role === "me" ? (
+            <div className="f-row me" key={i}><div className="f-bubble me" style={{ maxWidth: "80%" }}>{m.text}</div></div>
+          ) : (
+            <div className="f-row" key={i}>
+              <div className="f-av" style={{ background: "linear-gradient(135deg,#5C7CFA,#8AA2FF)" }}><Icon size={14} /></div>
+              <div className="f-bubblewrap">
+                <div className="f-bubble ai">{m.text}</div>
+                <div className="f-bubactions"><button className="f-tiny" onClick={() => speak(m.text)}><Volume2 size={13} /> Ouvir</button></div>
+              </div>
+            </div>
+          ))}
+          {busy && <div className="f-row"><div className="f-av" style={{ background: "linear-gradient(135deg,#5C7CFA,#8AA2FF)" }}><Icon size={14} /></div><div className="f-bubble ai"><div className="f-dots"><span /><span /><span /></div></div></div>}
+          <div ref={endRef} />
+        </div>
+      </div>
+      <div className="f-inputbar">
+        {speech.listening && <div className="f-faint" style={{ fontSize: 12, fontWeight: 700, marginBottom: 7 }}>Ouvindo… {speech.transcript}</div>}
+        <div className="f-inputrow">
+          {speech.supported && <button className={"f-iconbtn" + (speech.listening ? " live" : "")} onClick={mic}><Mic size={19} /></button>}
+          <textarea className="f-input" rows={1} placeholder="Responda em inglês…" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }} />
+          <button className="f-iconbtn send" onClick={send} disabled={busy || !input.trim()}>{busy ? <Loader2 size={19} className="spin" /> : <Send size={18} />}</button>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function UKModule({ mod, onBack, onPlay }) {
+  const { profile } = useApp();
+  const [words, setWords] = useState([]);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(false);
+  const load = async (append) => {
+    setBusy(true); setErr(false);
+    try {
+      const exclude = append ? words.map((w) => w.word) : [];
+      const data = await generateVocab(mod.vocabSeed, profile, exclude, 8);
+      const fresh = (data.words || []).filter((w) => w && w.word);
+      setWords(append ? [...words, ...fresh] : fresh);
+    } catch (e) { setErr(true); }
+    setBusy(false);
+  };
+  return (
+    <div className="f-scroll">
+      <div className="f-top">
+        <button className="f-avatar-btn" onClick={onBack}><ArrowLeft size={17} /></button>
+        <div style={{ textAlign: "center" }}><div className="f-h2" style={{ fontSize: 15 }}>{mod.label}</div><div className="f-faint" style={{ fontSize: 11, fontWeight: 700 }}>Reino Unido</div></div>
+        <div style={{ width: 34 }} />
+      </div>
+      <div className="f-pad">
+        <p className="f-muted" style={{ fontSize: 14, marginBottom: 18 }}>{mod.long}</p>
+
+        <p className="f-faint" style={{ fontSize: 12, fontWeight: 800, letterSpacing: ".05em", textTransform: "uppercase", marginBottom: 10 }}>Pratique conversando</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 9, marginBottom: 22 }}>
+          {mod.scenarios.map((sc, i) => (
+            <button key={i} className="f-chip" onClick={() => onPlay({ ...sc, icon: mod.icon })} style={{ padding: 13 }}>
+              <span className="ic" style={{ width: 36, height: 36 }}><Wand2 size={17} /></span>
+              <span style={{ flex: 1 }}>{sc.label}</span>
+              <ChevronRight size={18} color="var(--ink3)" />
+            </button>
+          ))}
+        </div>
+
+        <p className="f-faint" style={{ fontSize: 12, fontWeight: 800, letterSpacing: ".05em", textTransform: "uppercase", marginBottom: 10 }}>Vocabulário britânico</p>
+        {words.length === 0 && !busy && !err && (
+          <button className="f-btn primary block" onClick={() => load(false)}><Sparkles size={18} /> Gerar palavras</button>
+        )}
+        {busy && words.length === 0 && (<div style={{ textAlign: "center", padding: 26 }}><Loader2 size={24} className="spin" style={{ color: "var(--coral)" }} /><p className="f-faint" style={{ marginTop: 10, fontSize: 13 }}>Gerando vocabulário…</p></div>)}
+        {err && (<div className="f-card f-pad" style={{ padding: 14, textAlign: "center" }}><p className="f-muted" style={{ fontSize: 14 }}>Não consegui gerar agora. <button className="f-link" onClick={() => load(false)}>Tentar de novo</button></p></div>)}
+        <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
+          {words.map((w, idx) => <WordCard key={w.word + idx} w={w} />)}
+        </div>
+        {words.length > 0 && (
+          <button className="f-btn ghost block" style={{ marginTop: 14 }} onClick={() => load(true)} disabled={busy}>
+            {busy ? <><Loader2 size={16} className="spin" /> Gerando…</> : <><RefreshCw size={16} /> Gerar mais palavras</>}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function UKChallenge({ onBack }) {
+  const { ukDone, toggleUkTask } = useApp();
+  const total = UK_CHALLENGE.reduce((n, p) => n + p.tasks.length, 0);
+  const doneCount = UK_CHALLENGE.reduce((n, p, pi) => n + p.tasks.filter((_, ti) => ukDone.has("p" + pi + "t" + ti)).length, 0);
+  return (
+    <div className="f-scroll">
+      <div className="f-top">
+        <button className="f-avatar-btn" onClick={onBack}><ArrowLeft size={17} /></button>
+        <div style={{ textAlign: "center" }}><div className="f-h2" style={{ fontSize: 15 }}>Desafio 90 Dias</div><div className="f-faint" style={{ fontSize: 11, fontWeight: 700 }}>UK Fluency</div></div>
+        <div style={{ width: 34 }} />
+      </div>
+      <div className="f-pad">
+        <div className="f-card f-pad" style={{ padding: 16, marginBottom: 16, background: "linear-gradient(135deg,#2A1E45,#3a2a5e)", border: "none", color: "#fff" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+            <Flag size={22} /><div><div className="f-display" style={{ fontSize: 22 }}>{doneCount}/{total}</div><div style={{ fontSize: 12, opacity: .8, fontWeight: 700 }}>tarefas concluídas</div></div>
+          </div>
+          <div className="f-xpbar" style={{ background: "rgba(255,255,255,.18)" }}><div className="f-xpfill" style={{ width: `${total ? (doneCount / total) * 100 : 0}%` }} /></div>
+        </div>
+        {UK_CHALLENGE.map((p, pi) => (
+          <div key={pi} style={{ marginBottom: 18 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+              <span style={{ fontSize: 11.5, fontWeight: 800, color: "#fff", background: p.color, padding: "3px 9px", borderRadius: 999 }}>{p.phase}</span>
+              <span className="f-h2" style={{ fontSize: 16 }}>{p.title}</span>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {p.tasks.map((t, ti) => {
+                const id = "p" + pi + "t" + ti, ok = ukDone.has(id);
+                return (
+                  <button key={ti} onClick={() => toggleUkTask(id)} className="f-card" style={{ padding: 12, display: "flex", alignItems: "center", gap: 11, textAlign: "left" }}>
+                    <span style={{ width: 24, height: 24, borderRadius: 7, flex: "none", display: "grid", placeItems: "center", background: ok ? "var(--ok)" : "#EEE6F6", color: "#fff" }}>{ok ? <Check size={15} /> : null}</span>
+                    <span style={{ flex: 1, fontSize: 13.5, fontWeight: 600, color: ok ? "var(--ink3)" : "var(--ink)", textDecoration: ok ? "line-through" : "none" }}>{t}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function UKScreen() {
+  const [view, setView] = useState("hub");
+  const [mod, setMod] = useState(null);
+  const [roleSc, setRoleSc] = useState(null);
+
+  if (roleSc) return <MiniRoleplay scenario={roleSc} onBack={() => setRoleSc(null)} />;
+  if (view === "challenge") return <UKChallenge onBack={() => setView("hub")} />;
+  if (view === "module" && mod) return <UKModule mod={mod} onBack={() => setView("hub")} onPlay={(sc) => setRoleSc(sc)} />;
+
+  return (
+    <div className="f-scroll">
+      <div className="f-pad">
+        <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 2 }}>
+          <Flag size={17} color="var(--coral)" /><div className="f-eyebrow">Reino Unido</div>
+        </div>
+        <h2 className="f-h1" style={{ marginTop: 4, marginBottom: 6 }}>Inglês pra viver no UK</h2>
+        <p className="f-muted" style={{ fontSize: 14, marginBottom: 16 }}>Situações reais do dia a dia britânico: trabalho, NHS, moradia, banco e muito mais.</p>
+
+        <button onClick={() => setView("challenge")} className="f-card" style={{ width: "100%", padding: 16, marginBottom: 18, textAlign: "left", background: "linear-gradient(135deg,#FF6A4D,#FF9166)", border: "none", color: "#fff", display: "flex", alignItems: "center", gap: 13 }}>
+          <div style={{ width: 44, height: 44, borderRadius: 13, background: "rgba(255,255,255,.2)", display: "grid", placeItems: "center", flex: "none" }}><Trophy size={22} /></div>
+          <div style={{ flex: 1 }}><div className="f-h2" style={{ color: "#fff" }}>Desafio 90 Dias</div><div style={{ fontSize: 12.5, opacity: .9, fontWeight: 600 }}>Da sobrevivência à fluência funcional</div></div>
+          <ChevronRight size={20} />
+        </button>
+
+        <p className="f-faint" style={{ fontSize: 12, fontWeight: 800, letterSpacing: ".05em", textTransform: "uppercase", marginBottom: 10 }}>Módulos</p>
+        <div className="f-grid2">
+          {UK_MODULES.map((m) => (
+            <button key={m.id} onClick={() => { setMod(m); setView("module"); }} className="f-card" style={{ padding: 14, textAlign: "left", display: "flex", flexDirection: "column", gap: 9, alignItems: "flex-start" }}>
+              <div style={{ width: 38, height: 38, borderRadius: 11, background: "#F4EEFB", color: "var(--ink)", display: "grid", placeItems: "center" }}><m.icon size={19} /></div>
+              <div><div style={{ fontWeight: 800, fontSize: 14 }}>{m.label}</div><div className="f-faint" style={{ fontSize: 11.5, fontWeight: 600, marginTop: 2 }}>{m.desc}</div></div>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ============================ DASHBOARD ============================ */
 function DashScreen({ openPlans }) {
   const { profile, xp, stats, unlocked } = useApp();
@@ -1126,6 +1415,7 @@ const TABS = [
   { id: "vocab", label: "Vocabulário", icon: BookOpen },
   { id: "grammar", label: "Gramática", icon: GraduationCap },
   { id: "sim", label: "Simulações", icon: Wand2 },
+  { id: "uk", label: "UK", icon: Flag },
   { id: "dash", label: "Progresso", icon: BarChart3 },
 ];
 
@@ -1140,6 +1430,7 @@ export default function App() {
   const [favorites, setFavorites] = useState(new Set());
   const [learned, setLearnedSet] = useState(new Set());
   const [unlocked, setUnlocked] = useState(new Set());
+  const [ukDone, setUkDone] = useState(new Set());
   const [plan, setPlan] = useState("free");
   const [toasts, setToasts] = useState([]);
   const [sheet, setSheet] = useState(null); // 'profile' | 'plans'
@@ -1178,13 +1469,18 @@ export default function App() {
   const bump = useCallback((key, by = 1) => setStats((s) => ({ ...s, [key]: (s[key] || 0) + by })), []);
   const toggleFav = useCallback((w) => setFavorites((f) => { const n = new Set(f); n.has(w) ? n.delete(w) : n.add(w); return n; }), []);
   const markLearned = useCallback((w) => setLearnedSet((l) => new Set(l).add(w)), []);
+  const toggleUkTask = useCallback((id) => {
+    const adding = !ukDone.has(id);
+    setUkDone((s) => { const n = new Set(s); adding ? n.add(id) : n.delete(id); return n; });
+    if (adding) addXp(15);
+  }, [ukDone, addXp]);
 
-  const ctx = { profile, xp, addXp, stats, bump, favorites, toggleFav, learned, markLearned, unlocked, plan, openPlans: () => setSheet("plans") };
+  const ctx = { profile, xp, addXp, stats, bump, favorites, toggleFav, learned, markLearned, unlocked, plan, ukDone, toggleUkTask, openPlans: () => setSheet("plans") };
 
   const resetAll = () => {
     setStage("welcome"); setProfile({ name: "", goal: null, goalLabel: "", level: "A1" });
     setXp(0); setStats({ messages: 0, wordsLearned: 0, pron: 0, sims: 0, lessons: 0, minutes: 0, streak: 1, days: 1 });
-    setFavorites(new Set()); setLearnedSet(new Set()); setUnlocked(new Set()); prevUnlocked.current = new Set();
+    setFavorites(new Set()); setLearnedSet(new Set()); setUnlocked(new Set()); setUkDone(new Set()); prevUnlocked.current = new Set();
     setPlan("free"); setTab("chat"); setSheet(null);
   };
 
@@ -1202,7 +1498,7 @@ export default function App() {
 
           {stage === "app" && (
             <Ctx.Provider value={ctx}>
-              {tab !== "chat" && tab !== "sim" && (
+              {tab !== "chat" && tab !== "sim" && tab !== "uk" && (
                 <div className="f-top">
                   <div className="f-brand"><div className="f-logo"><Sparkles size={17} /></div><span className="f-brandname">Falô</span></div>
                   <div className="f-pillrow">
@@ -1218,12 +1514,13 @@ export default function App() {
               {tab === "vocab" && <VocabScreen />}
               {tab === "grammar" && <GrammarScreen />}
               {tab === "sim" && <SimScreen />}
+              {tab === "uk" && <UKScreen />}
               {tab === "dash" && <DashScreen openPlans={() => setSheet("plans")} />}
 
               <div className="f-tabbar">
                 {TABS.map((t) => (
                   <button key={t.id} className={"f-tab" + (tab === t.id ? " on" : "")} onClick={() => setTab(t.id)}>
-                    <t.icon size={20} /><span className="lab">{t.label}</span><span className="dot" />
+                    <t.icon size={19} /><span className="lab">{t.label}</span><span className="dot" />
                   </button>
                 ))}
               </div>

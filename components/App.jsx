@@ -5,11 +5,11 @@ import {
   MessageCircle, Mic, Languages, BookOpen, BarChart3, Flame, Star, Check, X, Send,
   Volume2, Target, Zap, Plus, Heart, ChevronRight, ArrowRight, ArrowLeft, Plane,
   Briefcase, Utensils, BedDouble, ShoppingBag, Landmark, Building2, Loader2, RotateCcw,
-  User, Globe, GraduationCap, Sparkles, Crown, Lock, PartyPopper, Wand2, Trophy
+  User, Globe, GraduationCap, Sparkles, Crown, Lock, PartyPopper, Wand2, Trophy, RefreshCw, Lightbulb
 } from "lucide-react";
 // Backend integration: AI chat + correction (/api/chat), text-to-speech (/api/tts),
 // speech-to-text recording (/api/stt). useRecorder mirrors the old useSpeech API.
-import { tutorReply, roleReply, speak, useRecorder as useSpeech } from "../lib/api";
+import { tutorReply, roleReply, speak, useRecorder as useSpeech, grammarLesson, generateVocab } from "../lib/api";
 
 /* ----------------------------------------------------------------------------
    Falô — Aprenda inglês conversando (MVP funcional)
@@ -145,9 +145,9 @@ const CSS = `
 
 /* tabbar */
 .f-tabbar{ display:flex; background:#fff; border-top:1px solid var(--line);
-  padding:7px 6px calc(7px + env(safe-area-inset-bottom)); position:relative; z-index:5; }
-.f-tab{ flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; padding:6px 0; color:var(--ink3); }
-.f-tab .lab{ font-size:10.5px; font-weight:800; letter-spacing:.01em; }
+  padding:7px 2px calc(7px + env(safe-area-inset-bottom)); position:relative; z-index:5; }
+.f-tab{ flex:1; min-width:0; display:flex; flex-direction:column; align-items:center; gap:3px; padding:6px 1px; color:var(--ink3); }
+.f-tab .lab{ font-size:9.5px; font-weight:800; letter-spacing:-.01em; max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .f-tab.on{ color:var(--coral); }
 .f-tab .dot{ width:5px; height:5px; border-radius:50%; background:transparent; }
 .f-tab.on .dot{ background:var(--coral); }
@@ -510,16 +510,29 @@ function Result({ data, profile, onDone }) {
 }
 
 /* ============================ CHAT ============================ */
+const CHAT_MODES = [
+  { id: "free", label: "Livre", icon: MessageCircle, en: "Hi {name}! I'm Lumi. 😊 Let's just chat — tell me, how was your day?", pt: "Oi {name}! Sou o Lumi. Vamos conversar — como foi o seu dia?" },
+  { id: "teacher", label: "Professor", icon: GraduationCap, en: "Hi {name}! I'm your English teacher. Send me any sentence and I'll correct it and explain. What would you like to start with?", pt: "Oi {name}! Sou seu professor. Me manda qualquer frase que eu corrijo e explico. Por onde quer começar?" },
+  { id: "interview", label: "Entrevista", icon: Briefcase, en: "Let's practice a job interview! What position are you applying for?", pt: "Vamos treinar uma entrevista! Para qual vaga você está se candidatando?" },
+  { id: "business", label: "Negócios", icon: Building2, en: "Welcome! Let's practice business English. What do you do at work?", pt: "Bem-vindo! Vamos praticar inglês de negócios. O que você faz no trabalho?" },
+  { id: "travel", label: "Viagem", icon: Plane, en: "Let's get you ready to travel! Where are you planning to go?", pt: "Vamos te preparar pra viajar! Para onde você pretende ir?" },
+];
+
 function ChatScreen() {
   const { profile, bump, addXp } = useApp();
-  const greet = `Hi ${profile.name}! I'm Lumi, your English tutor. 😊 Let's just chat — tell me, how was your day?`;
-  const [msgs, setMsgs] = useState([{ role: "ai", text: greet, translation: `Oi ${profile.name}! Sou o Lumi, seu tutor de inglês. Vamos conversar — me conta, como foi o seu dia?`, showT: false }]);
+  const greetFor = (mId) => {
+    const m = CHAT_MODES.find((x) => x.id === mId) || CHAT_MODES[0];
+    return { en: m.en.replace("{name}", profile.name), pt: m.pt.replace("{name}", profile.name) };
+  };
+  const [mode, setMode] = useState("free");
+  const [msgs, setMsgs] = useState(() => { const g = greetFor("free"); return [{ role: "ai", text: g.en, translation: g.pt, showT: false }]; });
   const [api, setApi] = useState([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const speech = useSpeech();
   const endRef = useRef(null);
   useEffect(() => { endRef.current && endRef.current.scrollIntoView({ behavior: "smooth" }); }, [msgs, busy]);
+  const cur = CHAT_MODES.find((m) => m.id === mode) || CHAT_MODES[0];
 
   const send = async () => {
     const text = input.trim();
@@ -529,7 +542,7 @@ function ChatScreen() {
     bump("messages", 1); addXp(5);
     const nextApi = [...api, { role: "user", content: text }];
     try {
-      const r = await tutorReply(nextApi, profile);
+      const r = await tutorReply(nextApi, profile, mode);
       setMsgs((m) => [...m, { role: "ai", text: r.reply, translation: r.translation, correction: r.correction, showT: false }]);
       setApi([...nextApi, { role: "assistant", content: r.reply }]);
     } catch (e) {
@@ -537,14 +550,23 @@ function ChatScreen() {
     }
     setBusy(false);
   };
-  const reset = () => { setMsgs([{ role: "ai", text: greet, translation: `Oi ${profile.name}! Vamos conversar — como foi o seu dia?`, showT: false }]); setApi([]); };
+  const switchMode = (id) => { setMode(id); const g = greetFor(id); setMsgs([{ role: "ai", text: g.en, translation: g.pt, showT: false }]); setApi([]); };
+  const reset = () => { const g = greetFor(mode); setMsgs([{ role: "ai", text: g.en, translation: g.pt, showT: false }]); setApi([]); };
   const mic = () => speech.listening ? speech.stop() : speech.start((t) => t && setInput(t));
 
   return (
     <>
       <div className="f-top">
-        <div className="f-brand"><div className="f-logo"><Sparkles size={17} /></div><div><div className="f-brandname" style={{ fontSize: 17 }}>Lumi</div><div className="f-faint" style={{ fontSize: 11, fontWeight: 700, marginTop: -2 }}>Nível {profile.level} · {profile.goalLabel}</div></div></div>
-        <button className="f-tiny" onClick={reset}><RotateCcw size={13} /> Nova conversa</button>
+        <div className="f-brand"><div className="f-logo"><Sparkles size={17} /></div><div><div className="f-brandname" style={{ fontSize: 17 }}>Lumi</div><div className="f-faint" style={{ fontSize: 11, fontWeight: 700, marginTop: -2 }}>Nível {profile.level} · {cur.label}</div></div></div>
+        <button className="f-tiny" onClick={reset}><RotateCcw size={13} /> Reiniciar</button>
+      </div>
+
+      <div style={{ display: "flex", gap: 7, overflowX: "auto", padding: "9px 12px", borderBottom: "1px solid var(--line)", background: "#fff" }}>
+        {CHAT_MODES.map((m) => (
+          <button key={m.id} className={"f-tiny" + (mode === m.id ? " on" : "")} style={{ flex: "none", padding: "7px 11px", fontSize: 12.5 }} onClick={() => switchMode(m.id)}>
+            <m.icon size={13} /> {m.label}
+          </button>
+        ))}
       </div>
 
       <div className="f-scroll" style={{ background: "linear-gradient(180deg,#F4F0FB,#F8F5FC)" }}>
@@ -691,52 +713,194 @@ function PronScreen() {
 }
 
 /* ============================ VOCABULARY ============================ */
+const VOCAB_CATEGORIES = ["Negócios", "Viagens", "Entrevista", "Tecnologia", "Atendimento", "Restaurante", "Hotelaria", "Saúde", "Finanças", "Compras", "Cotidiano"];
+
 function VocabScreen() {
-  const { favorites, toggleFav, bump, addXp, learned, markLearned } = useApp();
-  const [cat, setCat] = useState(0);
-  const list = VOCAB[cat];
+  const { profile, favorites, toggleFav, bump, addXp, learned, markLearned } = useApp();
+  const [cat, setCat] = useState(VOCAB_CATEGORIES[0]);
+  const [custom, setCustom] = useState("");
+  const [words, setWords] = useState([]);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(false);
+
+  const load = async (category, append) => {
+    setBusy(true); setErr(false);
+    try {
+      const exclude = append ? words.map((w) => w.word) : [];
+      const data = await generateVocab(category, profile, exclude, 8);
+      const fresh = (data.words || []).filter((w) => w && w.word);
+      setWords(append ? [...words, ...fresh] : fresh);
+    } catch (e) { setErr(true); }
+    setBusy(false);
+  };
+  const pick = (category) => { setCat(category); setWords([]); setErr(false); load(category, false); };
+  const genCustom = () => { const c = custom.trim(); if (!c) return; setCat(c); setWords([]); setCustom(""); load(c, false); };
+
   return (
     <div className="f-scroll">
       <div className="f-pad">
         <div className="f-eyebrow">Vocabulário</div>
-        <h2 className="f-h1" style={{ marginTop: 4, marginBottom: 14 }}>Palavras pra usar hoje</h2>
-        <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 6, marginBottom: 14 }}>
-          {VOCAB.map((c, i) => (
-            <button key={c.cat} className={"f-tiny" + (cat === i ? " on" : "")} style={{ flex: "none", padding: "8px 12px", fontSize: 13 }} onClick={() => setCat(i)}>
-              <c.icon size={14} /> {c.cat}
-            </button>
+        <h2 className="f-h1" style={{ marginTop: 4, marginBottom: 6 }}>Palavras pra usar hoje</h2>
+        <p className="f-muted" style={{ fontSize: 14, marginBottom: 14 }}>Escolha um tema e a IA cria palavras com tradução, exemplo, sinônimos e antônimos.</p>
+
+        <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 6, marginBottom: 10 }}>
+          {VOCAB_CATEGORIES.map((c) => (
+            <button key={c} className={"f-tiny" + (cat === c ? " on" : "")} style={{ flex: "none", padding: "8px 12px", fontSize: 13 }} onClick={() => pick(c)}>{c}</button>
           ))}
         </div>
+
+        <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+          <input className="f-input" style={{ flex: 1, padding: "10px 13px" }} placeholder="Ou digite um tema (ex.: futebol)" value={custom}
+            onChange={(e) => setCustom(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); genCustom(); } }} />
+          <button className="f-iconbtn send" onClick={genCustom} disabled={busy || !custom.trim()}><Sparkles size={18} /></button>
+        </div>
+
+        {words.length === 0 && !busy && !err && (
+          <button className="f-btn primary block" onClick={() => load(cat, false)}><Sparkles size={18} /> Gerar palavras de “{cat}”</button>
+        )}
+        {busy && words.length === 0 && (
+          <div style={{ textAlign: "center", padding: 30 }}><Loader2 size={26} className="spin" style={{ color: "var(--coral)" }} /><p className="f-faint" style={{ marginTop: 10, fontSize: 13 }}>Gerando palavras de “{cat}”…</p></div>
+        )}
+        {err && (
+          <div className="f-card f-pad" style={{ padding: 14, textAlign: "center" }}><p className="f-muted" style={{ fontSize: 14 }}>Não consegui gerar agora. <button className="f-link" onClick={() => load(cat, false)}>Tentar de novo</button></p></div>
+        )}
+
         <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
-          {list.words.map((w) => {
-            const fav = favorites.has(w.w), done = learned.has(w.w);
+          {words.map((w, idx) => {
+            const fav = favorites.has(w.word), done = learned.has(w.word);
+            const syn = Array.isArray(w.synonyms) ? w.synonyms : [];
+            const ant = Array.isArray(w.antonyms) ? w.antonyms : [];
             return (
-              <div className="f-card f-pad" key={w.w} style={{ padding: 14 }}>
+              <div className="f-card f-pad" key={w.word + idx} style={{ padding: 14 }}>
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span className="f-h2" style={{ fontSize: 17 }}>{w.w}</span>
-                      <button onClick={() => speak(w.w)} style={{ color: "var(--sky)" }}><Volume2 size={16} /></button>
+                      <span className="f-h2" style={{ fontSize: 17 }}>{w.word}</span>
+                      <button onClick={() => speak(w.word)} style={{ color: "var(--sky)" }}><Volume2 size={16} /></button>
                     </div>
-                    <p className="f-muted" style={{ fontSize: 13.5, fontWeight: 700, marginTop: 1 }}>{w.t}</p>
-                    <p className="f-faint" style={{ fontSize: 13, fontStyle: "italic", marginTop: 6 }}>“{w.ex}”</p>
+                    <p className="f-muted" style={{ fontSize: 13.5, fontWeight: 700, marginTop: 1 }}>{w.translation}</p>
+                    <p className="f-faint" style={{ fontSize: 13, fontStyle: "italic", marginTop: 6 }}>“{w.example}”</p>
+                    {(syn.length > 0 || ant.length > 0) && (
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 9 }}>
+                        {syn.slice(0, 3).map((s, i) => (<span key={"s" + i} style={{ fontSize: 11.5, fontWeight: 700, background: "#EEF7EE", color: "var(--ok)", padding: "3px 8px", borderRadius: 999 }}>≈ {s}</span>))}
+                        {ant.slice(0, 2).map((a, i) => (<span key={"a" + i} style={{ fontSize: 11.5, fontWeight: 700, background: "#FDEEEE", color: "var(--err)", padding: "3px 8px", borderRadius: 999 }}>≠ {a}</span>))}
+                      </div>
+                    )}
                   </div>
-                  <button onClick={() => toggleFav(w.w)} style={{ color: fav ? "var(--coral)" : "var(--ink3)" }}>
+                  <button onClick={() => toggleFav(w.word)} style={{ color: fav ? "var(--coral)" : "var(--ink3)" }}>
                     <Heart size={20} fill={fav ? "var(--coral)" : "none"} />
                   </button>
                 </div>
                 <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-                  <button className="f-tiny" onClick={() => speak(w.ex)}><Volume2 size={13} /> Frase</button>
+                  <button className="f-tiny" onClick={() => speak(w.example)}><Volume2 size={13} /> Frase</button>
                   <button className="f-tiny" style={done ? { background: "#EFFaf0", color: "var(--ok)", borderColor: "#cdebd6" } : {}}
-                    onClick={() => { if (!done) { markLearned(w.w); bump("wordsLearned", 1); addXp(10); } }}>
-                    {done ? <><Check size={13} /> Aprendida</> : <><Plus size={13} /> Marcar como aprendida</>}
+                    onClick={() => { if (!done) { markLearned(w.word); bump("wordsLearned", 1); addXp(10); } }}>
+                    {done ? <><Check size={13} /> Aprendida</> : <><Plus size={13} /> Aprendi</>}
                   </button>
                 </div>
               </div>
             );
           })}
         </div>
-        {favorites.size > 0 && <p className="f-faint" style={{ textAlign: "center", fontSize: 12.5, marginTop: 16 }}><Heart size={12} fill="var(--coral)" color="var(--coral)" style={{ verticalAlign: "-1px" }} /> {favorites.size} palavra(s) nos favoritos</p>}
+
+        {words.length > 0 && (
+          <button className="f-btn ghost block" style={{ marginTop: 14 }} onClick={() => load(cat, true)} disabled={busy}>
+            {busy ? <><Loader2 size={16} className="spin" /> Gerando…</> : <><RefreshCw size={16} /> Gerar mais palavras</>}
+          </button>
+        )}
+        {favorites.size > 0 && <p className="f-faint" style={{ textAlign: "center", fontSize: 12.5, marginTop: 16 }}><Heart size={12} fill="var(--coral)" color="var(--coral)" style={{ verticalAlign: "-1px" }} /> {favorites.size} no(s) favorito(s)</p>}
+      </div>
+    </div>
+  );
+}
+
+/* ============================ GRAMMAR ============================ */
+const GRAMMAR_TOPICS = [
+  "Present Simple", "Present Continuous", "Past Simple", "Past Continuous", "Present Perfect",
+  "Future (will / going to)", "Conditionals", "Passive Voice", "Phrasal Verbs", "Modal Verbs",
+  "Comparatives & Superlatives", "Articles (a / an / the)",
+];
+
+function GrammarScreen() {
+  const { profile, addXp, bump } = useApp();
+  const [topic, setTopic] = useState(null);
+  const [lesson, setLesson] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(false);
+
+  const open = async (t) => {
+    setTopic(t); setLesson(null); setErr(false); setBusy(true);
+    try {
+      const data = await grammarLesson(t, profile);
+      setLesson(data);
+      addXp(8); bump("lessons", 1);
+    } catch (e) { setErr(true); }
+    setBusy(false);
+  };
+
+  return (
+    <div className="f-scroll">
+      <div className="f-pad">
+        <div className="f-eyebrow">Gramática</div>
+        <h2 className="f-h1" style={{ marginTop: 4, marginBottom: 6 }}>Aulas com IA</h2>
+        <p className="f-muted" style={{ fontSize: 14, marginBottom: 14 }}>Escolha um tópico e a IA cria uma aula com explicação, exemplos e dicas.</p>
+
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
+          {GRAMMAR_TOPICS.map((t) => (
+            <button key={t} className={"f-tiny" + (topic === t ? " on" : "")} style={{ padding: "8px 12px", fontSize: 12.5 }} onClick={() => open(t)}>{t}</button>
+          ))}
+        </div>
+
+        {busy && (<div style={{ textAlign: "center", padding: 30 }}><Loader2 size={26} className="spin" style={{ color: "var(--coral)" }} /><p className="f-faint" style={{ marginTop: 10, fontSize: 13 }}>Preparando a aula de {topic}…</p></div>)}
+        {err && (<div className="f-card f-pad" style={{ padding: 14, textAlign: "center" }}><p className="f-muted" style={{ fontSize: 14 }}>Não consegui gerar a aula. <button className="f-link" onClick={() => open(topic)}>Tentar de novo</button></p></div>)}
+
+        {lesson && !busy && (
+          <div className="f-card f-pad" style={{ padding: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 10 }}>
+              <div style={{ width: 34, height: 34, borderRadius: 10, background: "var(--coral)", color: "#fff", display: "grid", placeItems: "center", flex: "none" }}><GraduationCap size={18} /></div>
+              <span className="f-h2">{lesson.title || topic}</span>
+            </div>
+            {lesson.explanation && <p style={{ fontSize: 14.5, lineHeight: 1.5, color: "var(--ink2)" }}>{lesson.explanation}</p>}
+
+            {Array.isArray(lesson.rules) && lesson.rules.length > 0 && (
+              <div style={{ marginTop: 14 }}>
+                <p className="f-faint" style={{ fontSize: 11.5, fontWeight: 800, letterSpacing: ".05em", textTransform: "uppercase", marginBottom: 8 }}>Regras</p>
+                {lesson.rules.map((r, i) => (<div className="f-feat" key={i}><span className="ck"><Check size={11} /></span><span>{r}</span></div>))}
+              </div>
+            )}
+
+            {Array.isArray(lesson.examples) && lesson.examples.length > 0 && (
+              <div style={{ marginTop: 16 }}>
+                <p className="f-faint" style={{ fontSize: 11.5, fontWeight: 800, letterSpacing: ".05em", textTransform: "uppercase", marginBottom: 8 }}>Exemplos</p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {lesson.examples.map((ex, i) => (
+                    <div key={i} style={{ background: "#F7F4FB", border: "1px solid var(--line2)", borderRadius: 12, padding: "10px 12px" }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                        <span style={{ fontWeight: 700, fontSize: 14 }}>{ex.en}</span>
+                        <button onClick={() => speak(ex.en)} style={{ color: "var(--sky)", flex: "none" }}><Volume2 size={15} /></button>
+                      </div>
+                      {ex.pt && <span className="f-faint" style={{ fontSize: 12.5 }}>{ex.pt}</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {lesson.tip && (
+              <div style={{ marginTop: 16, background: "#FFFCF4", border: "1px solid #F0E6C9", borderRadius: 12, padding: "11px 12px", display: "flex", gap: 9 }}>
+                <Lightbulb size={17} color="#B98900" style={{ flex: "none", marginTop: 1 }} />
+                <span style={{ fontSize: 13, color: "var(--ink2)" }}><strong>Dica:</strong> {lesson.tip}</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {!lesson && !busy && !err && (
+          <div style={{ textAlign: "center", padding: "20px 10px", color: "var(--ink3)" }}>
+            <BookOpen size={30} style={{ opacity: .5 }} />
+            <p style={{ marginTop: 8, fontSize: 13.5 }}>Toque em um tópico acima para começar.</p>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -960,6 +1124,7 @@ const TABS = [
   { id: "chat", label: "Conversa", icon: MessageCircle },
   { id: "pron", label: "Pronúncia", icon: Mic },
   { id: "vocab", label: "Vocabulário", icon: BookOpen },
+  { id: "grammar", label: "Gramática", icon: GraduationCap },
   { id: "sim", label: "Simulações", icon: Wand2 },
   { id: "dash", label: "Progresso", icon: BarChart3 },
 ];
@@ -1051,13 +1216,14 @@ export default function App() {
               {tab === "chat" && <ChatScreen />}
               {tab === "pron" && <PronScreen />}
               {tab === "vocab" && <VocabScreen />}
+              {tab === "grammar" && <GrammarScreen />}
               {tab === "sim" && <SimScreen />}
               {tab === "dash" && <DashScreen openPlans={() => setSheet("plans")} />}
 
               <div className="f-tabbar">
                 {TABS.map((t) => (
                   <button key={t.id} className={"f-tab" + (tab === t.id ? " on" : "")} onClick={() => setTab(t.id)}>
-                    <t.icon size={21} /><span className="lab">{t.label}</span><span className="dot" />
+                    <t.icon size={20} /><span className="lab">{t.label}</span><span className="dot" />
                   </button>
                 ))}
               </div>

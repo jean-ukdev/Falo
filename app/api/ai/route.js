@@ -125,6 +125,40 @@ export async function POST(req) {
     }
   }
 
+  // ---- 4b) Mini-lição interativa (explicação + perguntas de múltipla escolha) ----
+  if (body.mode === "lesson") {
+    const focus = body.topic || "everyday English";
+    const lvl = body.level || "B1";
+    const sys =
+      `You are an English teacher for Brazilian learners (CEFR ${lvl}). ` +
+      `Create a short interactive mini-lesson about: ${focus}. ` +
+      `Reply with ONLY a JSON object: {"title":"<short English title>",` +
+      `"intro":"<2 to 3 sentence explanation in Brazilian Portuguese that teaches the key English for this topic>",` +
+      `"questions":[{"q":"<a clear multiple-choice question testing this English>","options":["A","B","C","D"],` +
+      `"answer":0,"explain":"<one short sentence in Brazilian Portuguese explaining the correct answer>"}]}. ` +
+      `Give exactly 4 questions, each with exactly 4 options and one correct answer ("answer" is the 0-based index). ` +
+      `Make the questions practical and matched to level ${lvl}, and vary them each time.`;
+    try {
+      const r = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          response_format: { type: "json_object" },
+          messages: [{ role: "system", content: sys }, { role: "user", content: `Tema: ${focus}` }],
+          temperature: 0.8,
+          max_tokens: 1000,
+        }),
+      });
+      if (!r.ok) return Response.json({ error: "openai_error", detail: await r.text() }, { status: 502 });
+      const data = await r.json();
+      try { return Response.json(JSON.parse(data?.choices?.[0]?.message?.content || "{}")); }
+      catch { return Response.json({ title: "Lesson", intro: "", questions: [] }); }
+    } catch (e) {
+      return Response.json({ error: "network_error" }, { status: 502 });
+    }
+  }
+
   // ---- 5) Padrão: chat (tutor) ou role-play (simulações) ----
   const { mode = "tutor", chatMode = "free", messages = [], level = "B1", goal = "Conversação", scenarioRole = "", opener = "" } = body;
 

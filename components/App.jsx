@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 // Backend integration: AI chat + correction (/api/chat), text-to-speech (/api/tts),
 // speech-to-text recording (/api/stt). useRecorder mirrors the old useSpeech API.
-import { tutorReply, roleReply, speak, useRecorder as useSpeech, grammarLesson, generateVocab } from "../lib/api";
+import { tutorReply, roleReply, speak, useRecorder as useSpeech, grammarLesson, generateVocab, lessonContent } from "../lib/api";
 
 /* ----------------------------------------------------------------------------
    Falô — Aprenda inglês conversando (MVP funcional)
@@ -1060,25 +1060,22 @@ const UK_MODULES = [
   ] },
 ];
 
-const UK_CHALLENGE = [
-  { phase: "Dias 1–30", title: "Sobrevivência", color: "#FF6A4D", tasks: [
-    "Aprenda 20 palavras dos módulos Saúde e Moradia",
-    "Faça a simulação 'Marcar consulta no GP'",
-    "Pratique a pronúncia de 5 frases do dia a dia",
-    "Converse 5 minutos no modo Livre do chat",
-  ] },
-  { phase: "Dias 31–60", title: "Trabalho e comunicação", color: "#5C7CFA", tasks: [
-    "Aprenda 20 palavras do módulo Empregos",
-    "Faça a simulação de entrevista de emprego",
-    "Pratique o modo Negócios no chat",
-    "Faça a aula de gramática 'Past Simple'",
-  ] },
-  { phase: "Dias 61–90", title: "Fluência funcional", color: "#1F9D55", tasks: [
-    "Aprenda 20 palavras do módulo Empreender",
-    "Faça 3 simulações diferentes",
-    "Converse 10 minutos sem usar o 'Traduzir'",
-    "Refaça o teste de nivelamento e compare a evolução",
-  ] },
+const PHASE_TITLE = { "Dias 1–30": "Sobrevivência", "Dias 31–60": "Trabalho e comunicação", "Dias 61–90": "Fluência funcional" };
+
+// Trilha de 12 mini-lições (4 por fase). "focus" é o tema em inglês que a IA usa pra gerar a aula.
+const UK_LESSONS = [
+  { phase: "Dias 1–30", phaseColor: "#FF6A4D", title: "Cumprimentos e gentilezas", focus: "everyday British greetings and politeness (hello, hiya, are you alright?, please, thank you, cheers, sorry, excuse me)" },
+  { phase: "Dias 1–30", phaseColor: "#FF6A4D", title: "Saúde e NHS", focus: "UK health and NHS basics (book a GP appointment, prescription, pharmacy/chemist, describing symptoms and pain)" },
+  { phase: "Dias 1–30", phaseColor: "#FF6A4D", title: "Alugar e morar", focus: "renting a home in the UK (rent, deposit, landlord, tenant, council tax, bills, viewing a flat)" },
+  { phase: "Dias 1–30", phaseColor: "#FF6A4D", title: "Números, dinheiro e compras", focus: "numbers, prices, money and shopping in the UK (pounds and pence, change, receipt, refund, card or cash)" },
+  { phase: "Dias 31–60", phaseColor: "#5C7CFA", title: "Entrevista de emprego", focus: "UK job interview English (tell me about yourself, strengths and weaknesses, experience, availability, questions to ask)" },
+  { phase: "Dias 31–60", phaseColor: "#5C7CFA", title: "No trabalho", focus: "everyday workplace English (shift, rota, payslip, overtime, asking your manager something, booking a day off)" },
+  { phase: "Dias 31–60", phaseColor: "#5C7CFA", title: "Past Simple", focus: "the Past Simple tense with regular and irregular verbs, used to talk about finished past actions" },
+  { phase: "Dias 31–60", phaseColor: "#5C7CFA", title: "Telefone e email", focus: "English for phone calls and emails (polite requests, making appointments, leaving a message, formal greetings and sign-offs)" },
+  { phase: "Dias 61–90", phaseColor: "#1F9D55", title: "Small talk", focus: "British small talk (the weather, weekend plans, how are you, keeping a friendly conversation going)" },
+  { phase: "Dias 61–90", phaseColor: "#1F9D55", title: "Banco e finanças", focus: "UK banking and finances (current account, direct debit, standing order, debit card, credit score, overdraft)" },
+  { phase: "Dias 61–90", phaseColor: "#1F9D55", title: "Conditionals", focus: "English conditionals (zero, first and second conditional) for real and hypothetical situations" },
+  { phase: "Dias 61–90", phaseColor: "#1F9D55", title: "Empreender no UK", focus: "self-employment and business in the UK (sole trader, register with HMRC, VAT, invoice, limited company)" },
 ];
 
 function MiniRoleplay({ scenario, onBack }) {
@@ -1195,10 +1192,148 @@ function UKModule({ mod, onBack, onPlay }) {
   );
 }
 
-function UKChallenge({ onBack }) {
-  const { ukDone, toggleUkTask } = useApp();
-  const total = UK_CHALLENGE.reduce((n, p) => n + p.tasks.length, 0);
-  const doneCount = UK_CHALLENGE.reduce((n, p, pi) => n + p.tasks.filter((_, ti) => ukDone.has("p" + pi + "t" + ti)).length, 0);
+function LessonView({ lesson, index, onBack }) {
+  const { profile, completeUkLesson } = useApp();
+  const [data, setData] = useState(null);
+  const [busy, setBusy] = useState(true);
+  const [err, setErr] = useState(false);
+  const [phase, setPhase] = useState("intro"); // intro | quiz | result
+  const [qi, setQi] = useState(0);
+  const [picked, setPicked] = useState(null);
+  const [correct, setCorrect] = useState(0);
+
+  const load = async () => {
+    setBusy(true); setErr(false); setPhase("intro"); setQi(0); setPicked(null); setCorrect(0); setData(null);
+    try {
+      const d = await lessonContent(lesson.focus, profile);
+      if (!d || !Array.isArray(d.questions) || d.questions.length === 0) setErr(true);
+      else setData(d);
+    } catch (e) { setErr(true); }
+    setBusy(false);
+  };
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+
+  const qs = data?.questions || [];
+  const q = qs[qi];
+  const pass = qs.length > 0 && correct >= Math.ceil(qs.length / 2);
+
+  const pick = (idx) => {
+    if (picked !== null) return;
+    setPicked(idx);
+    if (q && idx === q.answer) setCorrect((c) => c + 1);
+  };
+  const next = () => {
+    if (qi + 1 < qs.length) { setQi(qi + 1); setPicked(null); }
+    else setPhase("result");
+  };
+  useEffect(() => { if (phase === "result" && pass) completeUkLesson("L" + index); /* eslint-disable-next-line */ }, [phase]);
+
+  return (
+    <>
+      <div className="f-top">
+        <button className="f-avatar-btn" onClick={onBack}><ArrowLeft size={17} /></button>
+        <div style={{ textAlign: "center", flex: 1, minWidth: 0 }}>
+          <div className="f-h2" style={{ fontSize: 15, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{lesson.title}</div>
+          <div className="f-faint" style={{ fontSize: 11, fontWeight: 700 }}>Lição {index + 1} · 90 Dias</div>
+        </div>
+        <div style={{ width: 34, flex: "none" }} />
+      </div>
+      <div className="f-scroll">
+        <div className="f-pad">
+          {busy && (
+            <div style={{ textAlign: "center", padding: "46px 0" }}>
+              <Loader2 size={28} className="spin" style={{ color: "var(--coral)" }} />
+              <p className="f-faint" style={{ marginTop: 12, fontSize: 13 }}>Preparando sua lição…</p>
+            </div>
+          )}
+          {err && !busy && (
+            <div className="f-card f-pad" style={{ padding: 16, textAlign: "center" }}>
+              <p className="f-muted" style={{ fontSize: 14 }}>Não consegui carregar a lição. <button className="f-link" onClick={load}>Tentar de novo</button></p>
+            </div>
+          )}
+
+          {!busy && !err && data && phase === "intro" && (
+            <>
+              <div className="f-card f-pad" style={{ padding: 16, marginBottom: 16 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 10 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 11, background: "var(--coral)", color: "#fff", display: "grid", placeItems: "center", flex: "none" }}><Lightbulb size={19} /></div>
+                  <span className="f-h2">{data.title || lesson.title}</span>
+                </div>
+                <p style={{ fontSize: 14.5, lineHeight: 1.55, color: "var(--ink2)" }}>{data.intro}</p>
+              </div>
+              <button className="f-btn primary block" onClick={() => setPhase("quiz")}>Começar · {qs.length} perguntas <ArrowRight size={18} /></button>
+            </>
+          )}
+
+          {!busy && !err && data && phase === "quiz" && q && (
+            <>
+              <div className="f-xpbar" style={{ marginBottom: 16 }}><div className="f-xpfill" style={{ width: `${(qi / qs.length) * 100}%`, background: "linear-gradient(90deg,#FF9166,var(--coral))" }} /></div>
+              <p className="f-faint" style={{ fontSize: 11.5, fontWeight: 800, letterSpacing: ".05em", textTransform: "uppercase", marginBottom: 8 }}>Pergunta {qi + 1} de {qs.length}</p>
+              <div className="f-card f-pad" style={{ padding: 16, marginBottom: 14, fontSize: 16, fontWeight: 700, fontFamily: "'Bricolage Grotesque',sans-serif", lineHeight: 1.4 }}>{q.q}</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {(q.options || []).map((o, idx) => {
+                  const isPick = picked === idx, isAns = idx === q.answer;
+                  let st = {};
+                  if (picked !== null) {
+                    if (isAns) st = { borderColor: "var(--ok)", background: "#EFFBF1" };
+                    else if (isPick) st = { borderColor: "var(--err)", background: "#FFF1F1" };
+                  }
+                  return (
+                    <button key={idx} className="f-chip" style={{ ...st, justifyContent: "space-between", height: "auto", minHeight: 46, padding: "11px 14px", textAlign: "left", lineHeight: 1.35 }} onClick={() => pick(idx)} disabled={picked !== null}>
+                      <span>{o}</span>
+                      {picked !== null && isAns && <Check size={18} color="var(--ok)" style={{ flex: "none", marginLeft: 8 }} />}
+                      {picked !== null && isPick && !isAns && <X size={18} color="var(--err)" style={{ flex: "none", marginLeft: 8 }} />}
+                    </button>
+                  );
+                })}
+              </div>
+              {picked !== null && (
+                <>
+                  {q.explain && (
+                    <div className="f-card" style={{ marginTop: 12, padding: "12px 14px", background: picked === q.answer ? "#EFFBF1" : "#FFF7ED", border: "none" }}>
+                      <p style={{ fontSize: 13.5, lineHeight: 1.5, color: "var(--ink2)" }}><b>{picked === q.answer ? "Certo! " : "Resposta correta: "}</b>{q.explain}</p>
+                    </div>
+                  )}
+                  <button className="f-btn primary block" style={{ marginTop: 14 }} onClick={next}>{qi + 1 < qs.length ? "Próxima" : "Ver resultado"} <ArrowRight size={18} /></button>
+                </>
+              )}
+            </>
+          )}
+
+          {!busy && !err && phase === "result" && (
+            <div style={{ textAlign: "center", paddingTop: 12 }}>
+              <div style={{ display: "inline-grid", placeItems: "center", width: 66, height: 66, borderRadius: 20, background: pass ? "var(--lime)" : "#FFE9E4", color: pass ? "#243a00" : "var(--coral-d)", marginBottom: 14 }}>{pass ? <PartyPopper size={32} /> : <RotateCcw size={30} />}</div>
+              <div className="f-display" style={{ fontSize: 42 }}>{correct}/{qs.length}</div>
+              <p className="f-h2" style={{ marginTop: 4 }}>{pass ? "Lição concluída! 🎉" : "Quase lá!"}</p>
+              <p className="f-muted" style={{ fontSize: 14, marginTop: 6, maxWidth: 300, marginLeft: "auto", marginRight: "auto" }}>{pass ? (index + 1 < UK_LESSONS.length ? "Você desbloqueou a próxima lição da trilha. +20 XP!" : "Você terminou as 12 lições do desafio. Parabéns! 🏆") : "Acerte pelo menos metade para concluir. Bora tentar de novo?"}</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 22 }}>
+                {pass ? (
+                  <button className="f-btn primary block" onClick={onBack}>Voltar à trilha <ArrowRight size={18} /></button>
+                ) : (
+                  <>
+                    <button className="f-btn primary block" onClick={load}><RotateCcw size={16} /> Tentar de novo</button>
+                    <button className="f-btn ghost block" onClick={onBack}>Voltar à trilha</button>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+function UKTrack({ onBack }) {
+  const { ukDone } = useApp();
+  const [openIdx, setOpenIdx] = useState(null);
+  const total = UK_LESSONS.length;
+  const doneCount = UK_LESSONS.filter((_, i) => ukDone.has("L" + i)).length;
+  const isUnlocked = (i) => i === 0 || ukDone.has("L" + (i - 1));
+
+  if (openIdx !== null) return <LessonView lesson={UK_LESSONS[openIdx]} index={openIdx} onBack={() => setOpenIdx(null)} />;
+
+  let lastPhase = null;
   return (
     <div className="f-scroll">
       <div className="f-top">
@@ -1207,31 +1342,40 @@ function UKChallenge({ onBack }) {
         <div style={{ width: 34 }} />
       </div>
       <div className="f-pad">
-        <div className="f-card f-pad" style={{ padding: 16, marginBottom: 16, background: "linear-gradient(135deg,#2A1E45,#3a2a5e)", border: "none", color: "#fff" }}>
+        <div className="f-card f-pad" style={{ padding: 16, marginBottom: 18, background: "linear-gradient(135deg,#2A1E45,#3a2a5e)", border: "none", color: "#fff" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-            <Flag size={22} /><div><div className="f-display" style={{ fontSize: 22 }}>{doneCount}/{total}</div><div style={{ fontSize: 12, opacity: .8, fontWeight: 700 }}>tarefas concluídas</div></div>
+            <Flag size={22} /><div><div className="f-display" style={{ fontSize: 22 }}>{doneCount}/{total}</div><div style={{ fontSize: 12, opacity: .8, fontWeight: 700 }}>lições concluídas</div></div>
           </div>
           <div className="f-xpbar" style={{ background: "rgba(255,255,255,.18)" }}><div className="f-xpfill" style={{ width: `${total ? (doneCount / total) * 100 : 0}%` }} /></div>
         </div>
-        {UK_CHALLENGE.map((p, pi) => (
-          <div key={pi} style={{ marginBottom: 18 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-              <span style={{ fontSize: 11.5, fontWeight: 800, color: "#fff", background: p.color, padding: "3px 9px", borderRadius: 999 }}>{p.phase}</span>
-              <span className="f-h2" style={{ fontSize: 16 }}>{p.title}</span>
+
+        {UK_LESSONS.map((ls, i) => {
+          const done = ukDone.has("L" + i);
+          const open = isUnlocked(i);
+          const header = ls.phase !== lastPhase ? ls.phase : null;
+          lastPhase = ls.phase;
+          return (
+            <div key={i}>
+              {header && (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "16px 0 10px" }}>
+                  <span style={{ fontSize: 11.5, fontWeight: 800, color: "#fff", background: ls.phaseColor, padding: "3px 9px", borderRadius: 999 }}>{ls.phase}</span>
+                  <span className="f-h2" style={{ fontSize: 15 }}>{PHASE_TITLE[ls.phase] || ""}</span>
+                </div>
+              )}
+              <button onClick={() => open && setOpenIdx(i)} disabled={!open} className="f-card"
+                style={{ width: "100%", padding: 13, marginBottom: 9, display: "flex", alignItems: "center", gap: 12, textAlign: "left", opacity: open ? 1 : .5, cursor: open ? "pointer" : "default" }}>
+                <div style={{ width: 40, height: 40, borderRadius: 12, flex: "none", display: "grid", placeItems: "center", background: done ? "var(--ok)" : open ? "var(--coral)" : "#E8E1F0", color: done || open ? "#fff" : "var(--ink3)" }}>
+                  {done ? <Check size={20} /> : open ? <span style={{ fontWeight: 800, fontSize: 16, fontFamily: "'Bricolage Grotesque',sans-serif" }}>{i + 1}</span> : <Lock size={16} />}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 800, fontSize: 14.5 }}>{ls.title}</div>
+                  <div className="f-faint" style={{ fontSize: 12, fontWeight: 600, marginTop: 1 }}>{done ? "Concluída · toque para revisar" : open ? "4 perguntas · toque para começar" : "Conclua a anterior para desbloquear"}</div>
+                </div>
+                {open && <ChevronRight size={18} color="var(--ink3)" style={{ flex: "none" }} />}
+              </button>
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {p.tasks.map((t, ti) => {
-                const id = "p" + pi + "t" + ti, ok = ukDone.has(id);
-                return (
-                  <button key={ti} onClick={() => toggleUkTask(id)} className="f-card" style={{ padding: 12, display: "flex", alignItems: "center", gap: 11, textAlign: "left" }}>
-                    <span style={{ width: 24, height: 24, borderRadius: 7, flex: "none", display: "grid", placeItems: "center", background: ok ? "var(--ok)" : "#EEE6F6", color: "#fff" }}>{ok ? <Check size={15} /> : null}</span>
-                    <span style={{ flex: 1, fontSize: 13.5, fontWeight: 600, color: ok ? "var(--ink3)" : "var(--ink)", textDecoration: ok ? "line-through" : "none" }}>{t}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -1243,7 +1387,7 @@ function UKScreen() {
   const [roleSc, setRoleSc] = useState(null);
 
   if (roleSc) return <MiniRoleplay scenario={roleSc} onBack={() => setRoleSc(null)} />;
-  if (view === "challenge") return <UKChallenge onBack={() => setView("hub")} />;
+  if (view === "challenge") return <UKTrack onBack={() => setView("hub")} />;
   if (view === "module" && mod) return <UKModule mod={mod} onBack={() => setView("hub")} onPlay={(sc) => setRoleSc(sc)} />;
 
   return (
@@ -1469,13 +1613,12 @@ export default function App() {
   const bump = useCallback((key, by = 1) => setStats((s) => ({ ...s, [key]: (s[key] || 0) + by })), []);
   const toggleFav = useCallback((w) => setFavorites((f) => { const n = new Set(f); n.has(w) ? n.delete(w) : n.add(w); return n; }), []);
   const markLearned = useCallback((w) => setLearnedSet((l) => new Set(l).add(w)), []);
-  const toggleUkTask = useCallback((id) => {
-    const adding = !ukDone.has(id);
-    setUkDone((s) => { const n = new Set(s); adding ? n.add(id) : n.delete(id); return n; });
-    if (adding) addXp(15);
+  const completeUkLesson = useCallback((id) => {
+    if (!ukDone.has(id)) addXp(20);
+    setUkDone((s) => { const n = new Set(s); n.add(id); return n; });
   }, [ukDone, addXp]);
 
-  const ctx = { profile, xp, addXp, stats, bump, favorites, toggleFav, learned, markLearned, unlocked, plan, ukDone, toggleUkTask, openPlans: () => setSheet("plans") };
+  const ctx = { profile, xp, addXp, stats, bump, favorites, toggleFav, learned, markLearned, unlocked, plan, ukDone, completeUkLesson, openPlans: () => setSheet("plans") };
 
   const resetAll = () => {
     setStage("welcome"); setProfile({ name: "", goal: null, goalLabel: "", level: "A1" });

@@ -58,8 +58,83 @@ export async function POST(req) {
     }
   }
 
-  // ---- 3) Padrão: chat (tutor) ou role-play (simulações) ----
-  const { mode = "tutor", messages = [], level = "B1", goal = "Conversação", scenarioRole = "", opener = "" } = body;
+  // ---- 3) Aula de gramática gerada pela IA ----
+  if (body.mode === "grammar") {
+    const topic = body.topic || "Present Simple";
+    const lvl = body.level || "B1";
+    const sys =
+      `You are an English grammar teacher for Brazilian learners (CEFR ${lvl}). ` +
+      `Create a short, clear lesson about "${topic}". Reply with ONLY a JSON object: ` +
+      `{"title":"<topic in English>","explanation":"<2 to 4 sentence explanation in Brazilian Portuguese>",` +
+      `"rules":["<rule 1 in PT>","<rule 2 in PT>","<rule 3 in PT>"],` +
+      `"examples":[{"en":"<English example>","pt":"<PT translation>"}],` +
+      `"tip":"<one common mistake Brazilians make with this topic, in PT>"}. ` +
+      `Give exactly 4 examples. Keep it concise and beginner-friendly.`;
+    try {
+      const r = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          response_format: { type: "json_object" },
+          messages: [{ role: "system", content: sys }, { role: "user", content: `Crie a aula sobre: ${topic}` }],
+          temperature: 0.5,
+          max_tokens: 800,
+        }),
+      });
+      if (!r.ok) return Response.json({ error: "openai_error", detail: await r.text() }, { status: 502 });
+      const data = await r.json();
+      try { return Response.json(JSON.parse(data?.choices?.[0]?.message?.content || "{}")); }
+      catch { return Response.json({ title: topic, explanation: "", rules: [], examples: [], tip: "" }); }
+    } catch (e) {
+      return Response.json({ error: "network_error" }, { status: 502 });
+    }
+  }
+
+  // ---- 4) Vocabulário gerado pela IA ----
+  if (body.mode === "vocab") {
+    const category = body.category || "Conversação cotidiana";
+    const lvl = body.level || "B1";
+    const count = Math.min(Math.max(parseInt(body.count) || 8, 1), 12);
+    const exclude = Array.isArray(body.exclude) ? body.exclude : [];
+    const sys =
+      `You generate English vocabulary for Brazilian learners (CEFR ${lvl}). ` +
+      `Produce ${count} useful words or short phrases for the category "${category}". ` +
+      `Reply with ONLY a JSON object: {"words":[{"word":"<English word>","translation":"<Brazilian Portuguese>",` +
+      `"example":"<natural English sentence>","synonyms":["<syn1>","<syn2>"],"antonyms":["<ant1>"]}]}. ` +
+      (exclude.length ? `Do NOT include these words: ${exclude.join(", ")}. ` : "") +
+      `Antonyms may be an empty array when none apply. Keep words relevant to the category and level.`;
+    try {
+      const r = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          response_format: { type: "json_object" },
+          messages: [{ role: "system", content: sys }, { role: "user", content: `Categoria: ${category}` }],
+          temperature: 0.6,
+          max_tokens: 900,
+        }),
+      });
+      if (!r.ok) return Response.json({ error: "openai_error", detail: await r.text() }, { status: 502 });
+      const data = await r.json();
+      try { return Response.json(JSON.parse(data?.choices?.[0]?.message?.content || "{}")); }
+      catch { return Response.json({ words: [] }); }
+    } catch (e) {
+      return Response.json({ error: "network_error" }, { status: 502 });
+    }
+  }
+
+  // ---- 5) Padrão: chat (tutor) ou role-play (simulações) ----
+  const { mode = "tutor", chatMode = "free", messages = [], level = "B1", goal = "Conversação", scenarioRole = "", opener = "" } = body;
+
+  const FOCUS = {
+    free: "Have a relaxed, friendly everyday conversation about daily life, hobbies and interests.",
+    teacher: "Act as a patient teacher: explain clearly and, when you correct, briefly teach the rule.",
+    interview: "Act as a job interviewer: ask realistic interview questions one at a time and give brief encouragement.",
+    business: "Focus on business English: meetings, emails, negotiations and presentations; professional but clear.",
+    travel: "Focus on travel situations: airports, hotels, restaurants, directions and small talk with locals.",
+  };
 
   let system;
   let useJson = false;
@@ -80,7 +155,8 @@ export async function POST(req) {
       `"corrected":"the corrected sentence else empty",` +
       `"explanation":"a short, friendly explanation in Brazilian Portuguese of the mistake else empty"}}\n` +
       `Only flag real, meaningful errors (grammar, word choice, verb tense). Ignore capitalization and punctuation. ` +
-      `If the message is fine, set hasError to false.`;
+      `If the message is fine, set hasError to false. ` +
+      `Conversation focus: ${FOCUS[chatMode] || FOCUS.free}`;
   }
 
   const payload = {

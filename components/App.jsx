@@ -6,7 +6,7 @@ import {
   Volume2, Target, Zap, Plus, Heart, ChevronRight, ArrowRight, ArrowLeft, Plane,
   Briefcase, Utensils, BedDouble, ShoppingBag, Landmark, Building2, Loader2, RotateCcw,
   User, Globe, GraduationCap, Sparkles, Crown, Lock, PartyPopper, Wand2, Trophy, RefreshCw, Lightbulb,
-  Stethoscope, Home, Bus, Flag
+  Stethoscope, Home, Bus, Flag, Map, Dumbbell
 } from "lucide-react";
 // Backend integration: AI chat + correction (/api/chat), text-to-speech (/api/tts),
 // speech-to-text recording (/api/stt). useRecorder mirrors the old useSpeech API.
@@ -147,8 +147,8 @@ const CSS = `
 /* tabbar */
 .f-tabbar{ display:flex; background:#fff; border-top:1px solid var(--line);
   padding:7px 2px calc(7px + env(safe-area-inset-bottom)); position:relative; z-index:5; }
-.f-tab{ flex:1; min-width:0; display:flex; flex-direction:column; align-items:center; gap:3px; padding:6px 1px; color:var(--ink3); }
-.f-tab .lab{ font-size:9px; font-weight:800; letter-spacing:-.02em; max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.f-tab{ flex:1; min-width:0; display:flex; flex-direction:column; align-items:center; gap:4px; padding:7px 2px; color:var(--ink3); }
+.f-tab .lab{ font-size:11.5px; font-weight:800; letter-spacing:-.01em; max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .f-tab.on{ color:var(--coral); }
 .f-tab .dot{ width:5px; height:5px; border-radius:50%; background:transparent; }
 .f-tab.on .dot{ background:var(--coral); }
@@ -1060,22 +1060,68 @@ const UK_MODULES = [
   ] },
 ];
 
-const PHASE_TITLE = { "Dias 1–30": "Sobrevivência", "Dias 31–60": "Trabalho e comunicação", "Dias 61–90": "Fluência funcional" };
+// Trilha principal: 5 módulos em ordem. Cada lição tem "title" (PT) e "focus" (tema em inglês pra IA gerar a aula + quiz).
+const MODULES = [
+  {
+    key: "iniciante", title: "Iniciante", subtitle: "Primeiros passos · A1–A2", color: "#1F9D55", icon: Star,
+    lessons: [
+      { title: "Cumprimentos e apresentações", focus: "basic greetings and introducing yourself in English (hello, hi, my name is, nice to meet you, where are you from, I'm from)" },
+      { title: "Verbo to be e presente simples", focus: "the verb to be (am/is/are) and the present simple for daily routines and basic facts" },
+      { title: "Números, horas e datas", focus: "numbers, telling the time, days of the week, months and dates in English" },
+      { title: "Perguntas do dia a dia", focus: "common everyday questions in English (what, where, when, how much, can I, do you have)" },
+      { title: "Comida e pedir num café", focus: "food vocabulary and ordering at a café or restaurant in English (I'd like, can I have, the bill please)" },
+    ],
+  },
+  {
+    key: "intermediario", title: "Intermediário", subtitle: "Comunicação real · B1–B2", color: "#2F80ED", icon: Zap,
+    lessons: [
+      { title: "Past Simple", focus: "the Past Simple tense with regular and irregular verbs, to talk about finished past actions" },
+      { title: "Futuro: will e going to", focus: "talking about the future in English with will and going to (plans, predictions, decisions)" },
+      { title: "No trabalho", focus: "everyday workplace English (talking to colleagues and your manager, shifts, asking for help, taking a day off)" },
+      { title: "Dar opiniões e concordar", focus: "giving opinions and agreeing or disagreeing in English (I think, in my opinion, I agree, I'm not sure about that)" },
+      { title: "Telefone e email", focus: "English for phone calls and emails (polite requests, making appointments, leaving a message, greetings and sign-offs)" },
+    ],
+  },
+  {
+    key: "avancado", title: "Avançado", subtitle: "Fluência e nuances · C1–C2", color: "#7C5CFA", icon: Crown,
+    lessons: [
+      { title: "Condicionais", focus: "English conditionals (zero, first, second and third conditional) for real and hypothetical situations" },
+      { title: "Phrasal verbs essenciais", focus: "common and useful English phrasal verbs with examples (get up, look for, give up, find out, take off)" },
+      { title: "Expressões e idioms", focus: "natural English idioms and expressions used by native speakers, with meaning and examples" },
+      { title: "Present Perfect vs Past Simple", focus: "the difference between Present Perfect and Past Simple and when to use each one" },
+      { title: "Discussão e argumentação", focus: "debating and arguing in English: expressing nuance, formal vs informal register, linking words" },
+    ],
+  },
+  {
+    key: "uk", title: "Reino Unido", subtitle: "Viver no UK · cultura e dia a dia", color: "#E0245E", icon: Flag,
+    lessons: [
+      { title: "Saúde e NHS", focus: "UK health and NHS basics (book a GP appointment, prescription, pharmacy/chemist, describing symptoms)" },
+      { title: "Alugar e morar", focus: "renting a home in the UK (rent, deposit, landlord, tenant, council tax, bills, viewing a flat)" },
+      { title: "Banco e contas", focus: "UK banking and bills (current account, direct debit, standing order, debit card, paying bills)" },
+      { title: "Transporte e direções", focus: "UK transport and directions (bus, tube, Oyster/contactless, train ticket, asking for and giving directions)" },
+      { title: "Gírias e cultura britânica", focus: "British slang, politeness and small talk (cheers, mate, lovely, you alright?, queuing, the weather)" },
+    ],
+  },
+  {
+    key: "empreendedor", title: "Empreendedor", subtitle: "Inglês de negócios · trabalhar por conta", color: "#F2994A", icon: Briefcase,
+    lessons: [
+      { title: "Abrir negócio no UK", focus: "starting a business in the UK in English (sole trader, register with HMRC, self-employed, National Insurance, VAT)" },
+      { title: "Faturas e finanças", focus: "business English for invoices and finances (invoice, expenses, getting paid, quote, deposit, due date)" },
+      { title: "Reuniões e apresentações", focus: "English for meetings and presentations (agenda, action points, pitching an idea, agreeing next steps)" },
+      { title: "Networking e vendas", focus: "English for networking and selling (introducing your business, describing what you do, persuading a client)" },
+      { title: "Emails e negociação", focus: "professional business emails and negotiating in English (proposals, polite pushback, reaching an agreement)" },
+    ],
+  },
+];
 
-// Trilha de 12 mini-lições (4 por fase). "focus" é o tema em inglês que a IA usa pra gerar a aula.
-const UK_LESSONS = [
-  { phase: "Dias 1–30", phaseColor: "#FF6A4D", title: "Cumprimentos e gentilezas", focus: "everyday British greetings and politeness (hello, hiya, are you alright?, please, thank you, cheers, sorry, excuse me)" },
-  { phase: "Dias 1–30", phaseColor: "#FF6A4D", title: "Saúde e NHS", focus: "UK health and NHS basics (book a GP appointment, prescription, pharmacy/chemist, describing symptoms and pain)" },
-  { phase: "Dias 1–30", phaseColor: "#FF6A4D", title: "Alugar e morar", focus: "renting a home in the UK (rent, deposit, landlord, tenant, council tax, bills, viewing a flat)" },
-  { phase: "Dias 1–30", phaseColor: "#FF6A4D", title: "Números, dinheiro e compras", focus: "numbers, prices, money and shopping in the UK (pounds and pence, change, receipt, refund, card or cash)" },
-  { phase: "Dias 31–60", phaseColor: "#5C7CFA", title: "Entrevista de emprego", focus: "UK job interview English (tell me about yourself, strengths and weaknesses, experience, availability, questions to ask)" },
-  { phase: "Dias 31–60", phaseColor: "#5C7CFA", title: "No trabalho", focus: "everyday workplace English (shift, rota, payslip, overtime, asking your manager something, booking a day off)" },
-  { phase: "Dias 31–60", phaseColor: "#5C7CFA", title: "Past Simple", focus: "the Past Simple tense with regular and irregular verbs, used to talk about finished past actions" },
-  { phase: "Dias 31–60", phaseColor: "#5C7CFA", title: "Telefone e email", focus: "English for phone calls and emails (polite requests, making appointments, leaving a message, formal greetings and sign-offs)" },
-  { phase: "Dias 61–90", phaseColor: "#1F9D55", title: "Small talk", focus: "British small talk (the weather, weekend plans, how are you, keeping a friendly conversation going)" },
-  { phase: "Dias 61–90", phaseColor: "#1F9D55", title: "Banco e finanças", focus: "UK banking and finances (current account, direct debit, standing order, debit card, credit score, overdraft)" },
-  { phase: "Dias 61–90", phaseColor: "#1F9D55", title: "Conditionals", focus: "English conditionals (zero, first and second conditional) for real and hypothetical situations" },
-  { phase: "Dias 61–90", phaseColor: "#1F9D55", title: "Empreender no UK", focus: "self-employment and business in the UK (sole trader, register with HMRC, VAT, invoice, limited company)" },
+// Ferramentas de prática livre (aba "Praticar"). id casa com o roteamento de telas existente.
+const PRACTICE_TOOLS = [
+  { id: "chat", label: "Conversar com a Lumi", desc: "Bate-papo com correção em tempo real", icon: MessageCircle, color: "#FF6A4D" },
+  { id: "pron", label: "Pronúncia", desc: "Treine sua fala e receba nota", icon: Mic, color: "#2F80ED" },
+  { id: "vocab", label: "Vocabulário", desc: "Aprenda palavras novas por tema", icon: BookOpen, color: "#7C5CFA" },
+  { id: "grammar", label: "Gramática", desc: "Aulas de gramática geradas pela IA", icon: GraduationCap, color: "#1F9D55" },
+  { id: "sim", label: "Simulações", desc: "Pratique situações reais por voz", icon: Wand2, color: "#F2994A" },
+  { id: "uk", label: "Inglês do Reino Unido", desc: "NHS, moradia, banco, transporte e gírias 🇬🇧", icon: Flag, color: "#E0245E" },
 ];
 
 function MiniRoleplay({ scenario, onBack }) {
@@ -1192,8 +1238,8 @@ function UKModule({ mod, onBack, onPlay }) {
   );
 }
 
-function LessonView({ lesson, index, onBack }) {
-  const { profile, completeUkLesson } = useApp();
+function LessonView({ lesson, lessonId, subtitle, isLastInModule, onBack }) {
+  const { profile, completeLesson } = useApp();
   const [data, setData] = useState(null);
   const [busy, setBusy] = useState(true);
   const [err, setErr] = useState(false);
@@ -1211,7 +1257,7 @@ function LessonView({ lesson, index, onBack }) {
     } catch (e) { setErr(true); }
     setBusy(false);
   };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [lessonId]);
 
   const qs = data?.questions || [];
   const q = qs[qi];
@@ -1226,7 +1272,7 @@ function LessonView({ lesson, index, onBack }) {
     if (qi + 1 < qs.length) { setQi(qi + 1); setPicked(null); }
     else setPhase("result");
   };
-  useEffect(() => { if (phase === "result" && pass) completeUkLesson("L" + index); /* eslint-disable-next-line */ }, [phase]);
+  useEffect(() => { if (phase === "result" && pass) completeLesson(lessonId); /* eslint-disable-next-line */ }, [phase]);
 
   return (
     <>
@@ -1234,7 +1280,7 @@ function LessonView({ lesson, index, onBack }) {
         <button className="f-avatar-btn" onClick={onBack}><ArrowLeft size={17} /></button>
         <div style={{ textAlign: "center", flex: 1, minWidth: 0 }}>
           <div className="f-h2" style={{ fontSize: 15, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{lesson.title}</div>
-          <div className="f-faint" style={{ fontSize: 11, fontWeight: 700 }}>Lição {index + 1} · 90 Dias</div>
+          <div className="f-faint" style={{ fontSize: 11, fontWeight: 700 }}>{subtitle}</div>
         </div>
         <div style={{ width: 34, flex: "none" }} />
       </div>
@@ -1304,15 +1350,15 @@ function LessonView({ lesson, index, onBack }) {
             <div style={{ textAlign: "center", paddingTop: 12 }}>
               <div style={{ display: "inline-grid", placeItems: "center", width: 66, height: 66, borderRadius: 20, background: pass ? "var(--lime)" : "#FFE9E4", color: pass ? "#243a00" : "var(--coral-d)", marginBottom: 14 }}>{pass ? <PartyPopper size={32} /> : <RotateCcw size={30} />}</div>
               <div className="f-display" style={{ fontSize: 42 }}>{correct}/{qs.length}</div>
-              <p className="f-h2" style={{ marginTop: 4 }}>{pass ? "Lição concluída! 🎉" : "Quase lá!"}</p>
-              <p className="f-muted" style={{ fontSize: 14, marginTop: 6, maxWidth: 300, marginLeft: "auto", marginRight: "auto" }}>{pass ? (index + 1 < UK_LESSONS.length ? "Você desbloqueou a próxima lição da trilha. +20 XP!" : "Você terminou as 12 lições do desafio. Parabéns! 🏆") : "Acerte pelo menos metade para concluir. Bora tentar de novo?"}</p>
+              <p className="f-h2" style={{ marginTop: 4 }}>{pass ? (isLastInModule ? "Módulo concluído! 🏆" : "Lição concluída! 🎉") : "Quase lá!"}</p>
+              <p className="f-muted" style={{ fontSize: 14, marginTop: 6, maxWidth: 300, marginLeft: "auto", marginRight: "auto" }}>{pass ? (isLastInModule ? "Você terminou este módulo e desbloqueou o próximo na trilha. +20 XP!" : "Você desbloqueou a próxima lição. +20 XP!") : "Acerte pelo menos metade para concluir. Bora tentar de novo?"}</p>
               <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 22 }}>
                 {pass ? (
-                  <button className="f-btn primary block" onClick={onBack}>Voltar à trilha <ArrowRight size={18} /></button>
+                  <button className="f-btn primary block" onClick={onBack}>Voltar ao módulo <ArrowRight size={18} /></button>
                 ) : (
                   <>
                     <button className="f-btn primary block" onClick={load}><RotateCcw size={16} /> Tentar de novo</button>
-                    <button className="f-btn ghost block" onClick={onBack}>Voltar à trilha</button>
+                    <button className="f-btn ghost block" onClick={onBack}>Voltar ao módulo</button>
                   </>
                 )}
               </div>
@@ -1324,60 +1370,170 @@ function LessonView({ lesson, index, onBack }) {
   );
 }
 
-function UKTrack({ onBack }) {
-  const { ukDone } = useApp();
+function ModuleView({ mod, moduleIndex, onBack }) {
+  const { doneLessons } = useApp();
   const [openIdx, setOpenIdx] = useState(null);
-  const total = UK_LESSONS.length;
-  const doneCount = UK_LESSONS.filter((_, i) => ukDone.has("L" + i)).length;
-  const isUnlocked = (i) => i === 0 || ukDone.has("L" + (i - 1));
+  const total = mod.lessons.length;
+  const done = mod.lessons.filter((_, i) => doneLessons.has(mod.key + "-" + i)).length;
+  const isUnlocked = (i) => i === 0 || doneLessons.has(mod.key + "-" + (i - 1));
 
-  if (openIdx !== null) return <LessonView lesson={UK_LESSONS[openIdx]} index={openIdx} onBack={() => setOpenIdx(null)} />;
+  if (openIdx !== null) {
+    const i = openIdx;
+    return (
+      <LessonView
+        lesson={mod.lessons[i]}
+        lessonId={mod.key + "-" + i}
+        subtitle={`${mod.title} · Lição ${i + 1}`}
+        isLastInModule={i === total - 1}
+        onBack={() => setOpenIdx(null)}
+      />
+    );
+  }
 
-  let lastPhase = null;
   return (
     <div className="f-scroll">
       <div className="f-top">
         <button className="f-avatar-btn" onClick={onBack}><ArrowLeft size={17} /></button>
-        <div style={{ textAlign: "center" }}><div className="f-h2" style={{ fontSize: 15 }}>Desafio 90 Dias</div><div className="f-faint" style={{ fontSize: 11, fontWeight: 700 }}>UK Fluency</div></div>
+        <div style={{ textAlign: "center" }}><div className="f-h2" style={{ fontSize: 15 }}>{mod.title}</div><div className="f-faint" style={{ fontSize: 11, fontWeight: 700 }}>{done}/{total} lições</div></div>
         <div style={{ width: 34 }} />
       </div>
       <div className="f-pad">
-        <div className="f-card f-pad" style={{ padding: 16, marginBottom: 18, background: "linear-gradient(135deg,#2A1E45,#3a2a5e)", border: "none", color: "#fff" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-            <Flag size={22} /><div><div className="f-display" style={{ fontSize: 22 }}>{doneCount}/{total}</div><div style={{ fontSize: 12, opacity: .8, fontWeight: 700 }}>lições concluídas</div></div>
+        <div className="f-card f-pad" style={{ padding: 16, marginBottom: 16, background: `linear-gradient(135deg, ${mod.color}, ${mod.color}bb)`, border: "none", color: "#fff" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
+            <div style={{ width: 44, height: 44, borderRadius: 13, background: "rgba(255,255,255,.22)", display: "grid", placeItems: "center", flex: "none" }}><mod.icon size={22} /></div>
+            <div style={{ flex: 1, minWidth: 0 }}><div className="f-h2" style={{ color: "#fff" }}>{mod.title}</div><div style={{ fontSize: 12.5, opacity: .9, fontWeight: 600 }}>{mod.subtitle}</div></div>
           </div>
-          <div className="f-xpbar" style={{ background: "rgba(255,255,255,.18)" }}><div className="f-xpfill" style={{ width: `${total ? (doneCount / total) * 100 : 0}%` }} /></div>
+          <div className="f-xpbar" style={{ background: "rgba(255,255,255,.2)", marginTop: 13 }}><div className="f-xpfill" style={{ width: `${total ? (done / total) * 100 : 0}%`, background: "#fff" }} /></div>
         </div>
 
-        {UK_LESSONS.map((ls, i) => {
-          const done = ukDone.has("L" + i);
+        {mod.lessons.map((ls, i) => {
+          const ok = doneLessons.has(mod.key + "-" + i);
           const open = isUnlocked(i);
-          const header = ls.phase !== lastPhase ? ls.phase : null;
-          lastPhase = ls.phase;
           return (
-            <div key={i}>
-              {header && (
-                <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "16px 0 10px" }}>
-                  <span style={{ fontSize: 11.5, fontWeight: 800, color: "#fff", background: ls.phaseColor, padding: "3px 9px", borderRadius: 999 }}>{ls.phase}</span>
-                  <span className="f-h2" style={{ fontSize: 15 }}>{PHASE_TITLE[ls.phase] || ""}</span>
-                </div>
-              )}
-              <button onClick={() => open && setOpenIdx(i)} disabled={!open} className="f-card"
-                style={{ width: "100%", padding: 13, marginBottom: 9, display: "flex", alignItems: "center", gap: 12, textAlign: "left", opacity: open ? 1 : .5, cursor: open ? "pointer" : "default" }}>
-                <div style={{ width: 40, height: 40, borderRadius: 12, flex: "none", display: "grid", placeItems: "center", background: done ? "var(--ok)" : open ? "var(--coral)" : "#E8E1F0", color: done || open ? "#fff" : "var(--ink3)" }}>
-                  {done ? <Check size={20} /> : open ? <span style={{ fontWeight: 800, fontSize: 16, fontFamily: "'Bricolage Grotesque',sans-serif" }}>{i + 1}</span> : <Lock size={16} />}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 800, fontSize: 14.5 }}>{ls.title}</div>
-                  <div className="f-faint" style={{ fontSize: 12, fontWeight: 600, marginTop: 1 }}>{done ? "Concluída · toque para revisar" : open ? "4 perguntas · toque para começar" : "Conclua a anterior para desbloquear"}</div>
-                </div>
-                {open && <ChevronRight size={18} color="var(--ink3)" style={{ flex: "none" }} />}
-              </button>
-            </div>
+            <button key={i} onClick={() => open && setOpenIdx(i)} disabled={!open} className="f-card"
+              style={{ width: "100%", padding: 13, marginBottom: 9, display: "flex", alignItems: "center", gap: 12, textAlign: "left", opacity: open ? 1 : .5, cursor: open ? "pointer" : "default" }}>
+              <div style={{ width: 38, height: 38, borderRadius: 11, flex: "none", display: "grid", placeItems: "center", background: ok ? "var(--ok)" : open ? mod.color : "#E8E1F0", color: ok || open ? "#fff" : "var(--ink3)" }}>
+                {ok ? <Check size={19} /> : open ? <span style={{ fontWeight: 800, fontSize: 15, fontFamily: "'Bricolage Grotesque',sans-serif" }}>{i + 1}</span> : <Lock size={15} />}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 800, fontSize: 14.5 }}>{ls.title}</div>
+                <div className="f-faint" style={{ fontSize: 12, fontWeight: 600, marginTop: 1 }}>{ok ? "Concluída · toque para revisar" : open ? "4 perguntas · toque para começar" : "Conclua a anterior"}</div>
+              </div>
+              {open && <ChevronRight size={18} color="var(--ink3)" style={{ flex: "none" }} />}
+            </button>
           );
         })}
       </div>
     </div>
+  );
+}
+
+function BrandTop() {
+  const { stats, xp, openProfile } = useApp();
+  return (
+    <div className="f-top">
+      <div className="f-brand"><div className="f-logo"><Sparkles size={17} /></div><span className="f-brandname">Falô</span></div>
+      <div className="f-pillrow">
+        <span className="f-pill flame"><Flame size={13} /> {stats.streak}</span>
+        <span className="f-pill xp"><Zap size={13} /> {xp}</span>
+        <button className="f-avatar-btn" onClick={openProfile}><User size={17} /></button>
+      </div>
+    </div>
+  );
+}
+
+function TrilhaScreen() {
+  const { doneLessons } = useApp();
+  const [openMod, setOpenMod] = useState(null);
+
+  const lessonsDoneIn = (m) => MODULES[m].lessons.filter((_, i) => doneLessons.has(MODULES[m].key + "-" + i)).length;
+  const moduleComplete = (m) => lessonsDoneIn(m) === MODULES[m].lessons.length;
+  const moduleUnlocked = (m) => m === 0 || moduleComplete(m - 1);
+  const totalDone = MODULES.reduce((n, _, m) => n + lessonsDoneIn(m), 0);
+  const totalLessons = MODULES.reduce((n, mod) => n + mod.lessons.length, 0);
+
+  if (openMod !== null) return <ModuleView mod={MODULES[openMod]} moduleIndex={openMod} onBack={() => setOpenMod(null)} />;
+
+  return (
+    <>
+      <BrandTop />
+      <div className="f-scroll">
+      <div className="f-pad">
+        <div className="f-eyebrow">Sua jornada</div>
+        <h2 className="f-h1" style={{ marginTop: 4, marginBottom: 6 }}>Trilha de inglês</h2>
+        <p className="f-muted" style={{ fontSize: 14, marginBottom: 14 }}>Do básico à fluência. Conclua um módulo para desbloquear o próximo.</p>
+
+        <div className="f-card f-pad" style={{ padding: 15, marginBottom: 18, background: "linear-gradient(135deg,#2A1E45,#3a2a5e)", border: "none", color: "#fff" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 11 }}>
+            <Map size={20} /><div><div className="f-display" style={{ fontSize: 21 }}>{totalDone}/{totalLessons}</div><div style={{ fontSize: 12, opacity: .82, fontWeight: 700 }}>lições concluídas</div></div>
+          </div>
+          <div className="f-xpbar" style={{ background: "rgba(255,255,255,.18)" }}><div className="f-xpfill" style={{ width: `${totalLessons ? (totalDone / totalLessons) * 100 : 0}%` }} /></div>
+        </div>
+
+        <div style={{ position: "relative" }}>
+          {MODULES.map((mod, m) => {
+            const d = lessonsDoneIn(m), tot = mod.lessons.length;
+            const unlocked = moduleUnlocked(m);
+            const complete = moduleComplete(m);
+            const last = m === MODULES.length - 1;
+            return (
+              <div key={m} style={{ display: "flex", gap: 13, alignItems: "stretch" }}>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 44, flex: "none" }}>
+                  <div style={{ width: 44, height: 44, borderRadius: 14, display: "grid", placeItems: "center", flex: "none", background: complete ? "var(--ok)" : unlocked ? mod.color : "#E8E1F0", color: complete || unlocked ? "#fff" : "var(--ink3)", boxShadow: unlocked ? "0 5px 14px rgba(0,0,0,.13)" : "none" }}>
+                    {complete ? <Check size={22} /> : unlocked ? <mod.icon size={21} /> : <Lock size={18} />}
+                  </div>
+                  {!last && <div style={{ flex: 1, width: 3, background: complete ? "var(--ok)" : "var(--line)", marginTop: 3, marginBottom: 3, borderRadius: 2, minHeight: 20 }} />}
+                </div>
+                <button onClick={() => unlocked && setOpenMod(m)} disabled={!unlocked} className="f-card"
+                  style={{ flex: 1, minWidth: 0, textAlign: "left", padding: 14, marginBottom: 14, opacity: unlocked ? 1 : .6, cursor: unlocked ? "pointer" : "default", borderLeft: `3px solid ${unlocked ? mod.color : "transparent"}` }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                    <div style={{ fontWeight: 800, fontSize: 16, fontFamily: "'Bricolage Grotesque',sans-serif" }}>{mod.title}</div>
+                    {unlocked && <ChevronRight size={18} color="var(--ink3)" style={{ flex: "none" }} />}
+                  </div>
+                  <div className="f-faint" style={{ fontSize: 12.5, fontWeight: 600, marginTop: 2 }}>{mod.subtitle}</div>
+                  {unlocked ? (
+                    <div style={{ marginTop: 10 }}>
+                      <div className="f-xpbar"><div className="f-xpfill" style={{ width: `${(d / tot) * 100}%`, background: mod.color }} /></div>
+                      <div className="f-faint" style={{ fontSize: 11.5, fontWeight: 700, marginTop: 5 }}>{d}/{tot} lições{complete ? " · concluído ✓" : ""}</div>
+                    </div>
+                  ) : (
+                    <div className="f-faint" style={{ fontSize: 12, fontWeight: 600, marginTop: 8 }}>🔒 Conclua o módulo anterior</div>
+                  )}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+    </>
+  );
+}
+
+function PraticarScreen({ onOpen }) {
+  return (
+    <>
+      <BrandTop />
+      <div className="f-scroll">
+      <div className="f-pad">
+        <div className="f-eyebrow">Prática livre</div>
+        <h2 className="f-h1" style={{ marginTop: 4, marginBottom: 6 }}>Praticar</h2>
+        <p className="f-muted" style={{ fontSize: 14, marginBottom: 16 }}>Ferramentas pra treinar do seu jeito, quando quiser.</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
+          {PRACTICE_TOOLS.map((t) => (
+            <button key={t.id} onClick={() => onOpen(t.id)} className="f-card" style={{ width: "100%", padding: 15, display: "flex", alignItems: "center", gap: 13, textAlign: "left" }}>
+              <div style={{ width: 46, height: 46, borderRadius: 13, flex: "none", display: "grid", placeItems: "center", background: t.color, color: "#fff" }}><t.icon size={22} /></div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 800, fontSize: 15 }}>{t.label}</div>
+                <div className="f-faint" style={{ fontSize: 12.5, fontWeight: 600, marginTop: 2 }}>{t.desc}</div>
+              </div>
+              <ChevronRight size={19} color="var(--ink3)" style={{ flex: "none" }} />
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+    </>
   );
 }
 
@@ -1387,7 +1543,6 @@ function UKScreen() {
   const [roleSc, setRoleSc] = useState(null);
 
   if (roleSc) return <MiniRoleplay scenario={roleSc} onBack={() => setRoleSc(null)} />;
-  if (view === "challenge") return <UKTrack onBack={() => setView("hub")} />;
   if (view === "module" && mod) return <UKModule mod={mod} onBack={() => setView("hub")} onPlay={(sc) => setRoleSc(sc)} />;
 
   return (
@@ -1398,12 +1553,6 @@ function UKScreen() {
         </div>
         <h2 className="f-h1" style={{ marginTop: 4, marginBottom: 6 }}>Inglês pra viver no UK</h2>
         <p className="f-muted" style={{ fontSize: 14, marginBottom: 16 }}>Situações reais do dia a dia britânico: trabalho, NHS, moradia, banco e muito mais.</p>
-
-        <button onClick={() => setView("challenge")} className="f-card" style={{ width: "100%", padding: 16, marginBottom: 18, textAlign: "left", background: "linear-gradient(135deg,#FF6A4D,#FF9166)", border: "none", color: "#fff", display: "flex", alignItems: "center", gap: 13 }}>
-          <div style={{ width: 44, height: 44, borderRadius: 13, background: "rgba(255,255,255,.2)", display: "grid", placeItems: "center", flex: "none" }}><Trophy size={22} /></div>
-          <div style={{ flex: 1 }}><div className="f-h2" style={{ color: "#fff" }}>Desafio 90 Dias</div><div style={{ fontSize: 12.5, opacity: .9, fontWeight: 600 }}>Da sobrevivência à fluência funcional</div></div>
-          <ChevronRight size={20} />
-        </button>
 
         <p className="f-faint" style={{ fontSize: 12, fontWeight: 800, letterSpacing: ".05em", textTransform: "uppercase", marginBottom: 10 }}>Módulos</p>
         <div className="f-grid2">
@@ -1554,27 +1703,26 @@ function ProfileSheet({ onClose, onPlans, onReset }) {
 
 /* ============================ APP ============================ */
 const TABS = [
-  { id: "chat", label: "Conversa", icon: MessageCircle },
-  { id: "pron", label: "Pronúncia", icon: Mic },
-  { id: "vocab", label: "Vocabulário", icon: BookOpen },
-  { id: "grammar", label: "Gramática", icon: GraduationCap },
-  { id: "sim", label: "Simulações", icon: Wand2 },
-  { id: "uk", label: "UK", icon: Flag },
+  { id: "trilha", label: "Trilha", icon: Map },
+  { id: "praticar", label: "Praticar", icon: Dumbbell },
   { id: "dash", label: "Progresso", icon: BarChart3 },
 ];
+
+// Telas que vivem "dentro" da aba Praticar (mantêm a aba Praticar destacada).
+const PRACTICE_TABS = ["chat", "pron", "vocab", "grammar", "sim", "uk"];
 
 export default function App() {
   const [stage, setStage] = useState("welcome");
   const [profile, setProfile] = useState({ name: "", goal: null, goalLabel: "", level: "A1" });
   const [testData, setTestData] = useState(null);
-  const [tab, setTab] = useState("chat");
+  const [tab, setTab] = useState("trilha");
 
   const [xp, setXp] = useState(0);
   const [stats, setStats] = useState({ messages: 0, wordsLearned: 0, pron: 0, sims: 0, lessons: 0, minutes: 0, streak: 1, days: 1 });
   const [favorites, setFavorites] = useState(new Set());
   const [learned, setLearnedSet] = useState(new Set());
   const [unlocked, setUnlocked] = useState(new Set());
-  const [ukDone, setUkDone] = useState(new Set());
+  const [doneLessons, setDoneLessons] = useState(new Set());
   const [plan, setPlan] = useState("free");
   const [toasts, setToasts] = useState([]);
   const [sheet, setSheet] = useState(null); // 'profile' | 'plans'
@@ -1613,18 +1761,18 @@ export default function App() {
   const bump = useCallback((key, by = 1) => setStats((s) => ({ ...s, [key]: (s[key] || 0) + by })), []);
   const toggleFav = useCallback((w) => setFavorites((f) => { const n = new Set(f); n.has(w) ? n.delete(w) : n.add(w); return n; }), []);
   const markLearned = useCallback((w) => setLearnedSet((l) => new Set(l).add(w)), []);
-  const completeUkLesson = useCallback((id) => {
-    if (!ukDone.has(id)) addXp(20);
-    setUkDone((s) => { const n = new Set(s); n.add(id); return n; });
-  }, [ukDone, addXp]);
+  const completeLesson = useCallback((id) => {
+    if (!doneLessons.has(id)) addXp(20);
+    setDoneLessons((s) => { const n = new Set(s); n.add(id); return n; });
+  }, [doneLessons, addXp]);
 
-  const ctx = { profile, xp, addXp, stats, bump, favorites, toggleFav, learned, markLearned, unlocked, plan, ukDone, completeUkLesson, openPlans: () => setSheet("plans") };
+  const ctx = { profile, xp, addXp, stats, bump, favorites, toggleFav, learned, markLearned, unlocked, plan, doneLessons, completeLesson, openPlans: () => setSheet("plans"), openProfile: () => setSheet("profile") };
 
   const resetAll = () => {
     setStage("welcome"); setProfile({ name: "", goal: null, goalLabel: "", level: "A1" });
     setXp(0); setStats({ messages: 0, wordsLearned: 0, pron: 0, sims: 0, lessons: 0, minutes: 0, streak: 1, days: 1 });
-    setFavorites(new Set()); setLearnedSet(new Set()); setUnlocked(new Set()); setUkDone(new Set()); prevUnlocked.current = new Set();
-    setPlan("free"); setTab("chat"); setSheet(null);
+    setFavorites(new Set()); setLearnedSet(new Set()); setUnlocked(new Set()); setDoneLessons(new Set()); prevUnlocked.current = new Set();
+    setPlan("free"); setTab("trilha"); setSheet(null);
   };
 
   return (
@@ -1641,7 +1789,7 @@ export default function App() {
 
           {stage === "app" && (
             <Ctx.Provider value={ctx}>
-              {tab !== "chat" && tab !== "sim" && tab !== "uk" && (
+              {tab !== "chat" && tab !== "sim" && tab !== "uk" && tab !== "trilha" && tab !== "praticar" && (
                 <div className="f-top">
                   <div className="f-brand"><div className="f-logo"><Sparkles size={17} /></div><span className="f-brandname">Falô</span></div>
                   <div className="f-pillrow">
@@ -1652,6 +1800,8 @@ export default function App() {
                 </div>
               )}
 
+              {tab === "trilha" && <TrilhaScreen />}
+              {tab === "praticar" && <PraticarScreen onOpen={setTab} />}
               {tab === "chat" && <ChatScreen />}
               {tab === "pron" && <PronScreen />}
               {tab === "vocab" && <VocabScreen />}
@@ -1661,11 +1811,14 @@ export default function App() {
               {tab === "dash" && <DashScreen openPlans={() => setSheet("plans")} />}
 
               <div className="f-tabbar">
-                {TABS.map((t) => (
-                  <button key={t.id} className={"f-tab" + (tab === t.id ? " on" : "")} onClick={() => setTab(t.id)}>
-                    <t.icon size={19} /><span className="lab">{t.label}</span><span className="dot" />
-                  </button>
-                ))}
+                {TABS.map((t) => {
+                  const active = tab === t.id || (t.id === "praticar" && PRACTICE_TABS.includes(tab));
+                  return (
+                    <button key={t.id} className={"f-tab" + (active ? " on" : "")} onClick={() => setTab(t.id)}>
+                      <t.icon size={22} /><span className="lab">{t.label}</span><span className="dot" />
+                    </button>
+                  );
+                })}
               </div>
 
               {sheet === "plans" && <PlansSheet onClose={() => setSheet(null)} plan={plan} onChoose={(id) => { setPlan(id); setSheet(null); pushToast(<><span className="ti" style={{ background: "var(--coral)", color: "#fff" }}><Crown size={15} /></span>Plano {PLANS.find((p) => p.id === id)?.name} ativado (demo)</>); }} />}
